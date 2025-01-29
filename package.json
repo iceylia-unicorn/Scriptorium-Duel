@@ -1,0 +1,24 @@
+{
+  "name": "graduation-project",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@babylonjs/core": "^7.42.0",
+    "@babylonjs/materials": "^7.42.0",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@babylonjs/inspector": "^7.42.0",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/tsconfig": "^0.7.0",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.5",
+    "vue-tsc": "^2.2.0"
+  }
+}
