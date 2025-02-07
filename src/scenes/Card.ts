@@ -44,7 +44,8 @@ export class Card {
     public playedFuns: Array<Function> | Array<null> = []; //被放置时的回调函数
     strikeFuns: Array<Function> = []; //攻击时的回调函数
     beAttackedFuns = []; // 被攻击时的回调函数
-    private isVisible: boolean = true;
+
+    isVisible: boolean;//是否可见。
 
 
     public setName(value: string) {
@@ -64,7 +65,7 @@ export class Card {
     }
 
     public show(position?: Vector3, rotation?: Quaternion): void {
-
+        if(this.isVisible) return;
         this.box.isVisible = true;
         if (this.cardName) this.cardName.isVisible = true;
         if (this.cardAttack) this.cardAttack.isVisible = true;
@@ -83,6 +84,7 @@ export class Card {
     }
 
     public hide(): void {
+        if(!this.isVisible) return;
         this.box.isVisible = false;
         if (this.cardName) this.cardName.isVisible = false;
         if (this.cardAttack) this.cardAttack.isVisible = false;
@@ -97,7 +99,7 @@ export class Card {
         this.attackValue = attack;
         this.HPValue = HP;
         this.costValue = cost;
-
+        this.isVisible = true;
 
         //Create base card mesh
         let cardWidth = 4, cardHeight = 6, cardDeep = 0.05; // card size
