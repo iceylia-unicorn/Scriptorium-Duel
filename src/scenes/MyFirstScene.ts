@@ -88,7 +88,9 @@ const createScene = async (canvas: HTMLCanvasElement | null) => {
     stoat.box.position.x = 5;
     // stoat.changeName("长老白鼬");
     // stoat.startTalkAnimate();
-    const tableManager = new TableManager(scene);
+    new TableManager(scene);
+
+
 
 
     // /root/graduation_project/html/static/images/models/table/Poliigon_WoodVeneerOak_7760_BaseColor.jpg
@@ -98,7 +100,8 @@ const createScene = async (canvas: HTMLCanvasElement | null) => {
     ant.box.position = new Vector3(1.8832770407085523e-16, -4.578444004058838, 1.407560110092163);// (debugNode as BABYLON.Mesh)
     ant.box.rotation  = new Vector3(1.1502502007897775, 3.141592653589793, 3.141592653589793);// (debugNode as BABYLON.Mesh)
     // const ant2 = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_lice.png");
-
+    ant.hide();
+    ant.show();
     // const gl = new GlowLayer("glowMesh", scene);
     // gl.intensity = 0.5;
     ability_tristrike.addFun(ant);

@@ -44,7 +44,7 @@ export class Card {
     public playedFuns: Array<Function> | Array<null> = []; //被放置时的回调函数
     strikeFuns: Array<Function> = []; //攻击时的回调函数
     beAttackedFuns = []; // 被攻击时的回调函数
-    private isVisible: boolean;
+    private isVisible: boolean = true;
 
 
     public setName(value: string) {

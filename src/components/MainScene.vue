@@ -30,8 +30,5 @@ onMounted(async () => {
   display: flex;
   flex-direction: row;
   align-items: center;
-  //justify-content: center;
-  //width: 100%;
-  //margin: 10px;
 }
 </style>

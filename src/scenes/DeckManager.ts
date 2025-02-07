@@ -98,8 +98,8 @@ export class DeckManager {
     private _deckPosition: Vector3; // 牌堆位置
     private _isAnimating: boolean = false; // 是否进行抽卡动画
     private _deckRotation = new Vector3(1.1502502007897775, 3.141592653589793, 3.141592653589793)
-    private squirrelInitNum = 10; //初始松鼠卡数量
-    private handCardsInitNum = 4; //初始手牌数量
+    // private squirrelInitNum = 10; //初始松鼠卡数量
+    // private handCardsInitNum = 4; //初始手牌数量
 
     // 抽牌堆（未使用的卡）
     drawPile: Card[] = [];
