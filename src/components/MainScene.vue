@@ -19,22 +19,19 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div id="overlay">
-  </div>
   <div id="canvasZone">
 
-    <canvas ref="bjsCanvas" width="500" height="500" />
+    <canvas ref="bjsCanvas" width="1080" height="607.5" />
   </div>
 </template>
 
 <style scoped>
-/* CSS for the HTML elements */
-#overlay {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  padding: 10px;
-  background-color: rgba(255, 255, 255, 0.8);
-  border: 1px solid #ccc;
+#canvasZone{
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  //justify-content: center;
+  //width: 100%;
+  //margin: 10px;
 }
 </style>
