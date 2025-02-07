@@ -3,7 +3,7 @@ import {
     Color3,
     DynamicTexture, type ICanvasRenderingContext,
     Mesh,
-    MeshBuilder,
+    MeshBuilder, Quaternion,
     Scene,
     StandardMaterial,
     Texture,
@@ -11,7 +11,7 @@ import {
 } from "@babylonjs/core";
 
 // 初始印记对应的位置。
-const addedPosition = [[-1.23,1.6], [-1.23, 0.3]];
+const addedPosition = [[-1.23, 1.6], [-1.23, 0.3]];
 const sigilWidth = 1.38;
 export type Sigil = typeof ability_tristrike;
 
@@ -40,10 +40,11 @@ export class Card {
 
     initSigilNum = 0; //初始印记数量
     curSigilNum = 0; //当前印记数量
-    sigilsArr:Array<Sigil> = [];//印记数组。
-    public playedFuns:Array<Function> | Array<null> = []; //被放置时的回调函数
-    strikeFuns:Array<Function> = []; //攻击时的回调函数
+    sigilsArr: Array<Sigil> = [];//印记数组。
+    public playedFuns: Array<Function> | Array<null> = []; //被放置时的回调函数
+    strikeFuns: Array<Function> = []; //攻击时的回调函数
     beAttackedFuns = []; // 被攻击时的回调函数
+    private isVisible: boolean;
 
 
     public setName(value: string) {
@@ -62,7 +63,36 @@ export class Card {
         this.cardHPTexture.drawText(this.HPValue, null, null, "bold 300px monospace", "black", "transparent", true, true);//assign null to positon cause center position.
     }
 
-    constructor(scene: Scene, name: string, attack: string, HP: string, cost: string, portraitUrl = "", initSigilNum = 0, sigilsArr:Array<Sigil>|null = null) {
+    public show(position?: Vector3, rotation?: Quaternion): void {
+
+        this.box.isVisible = true;
+        if (this.cardName) this.cardName.isVisible = true;
+        if (this.cardAttack) this.cardAttack.isVisible = true;
+        if (this.cardHP) this.cardHP.isVisible = true;
+        if (this.cardCost) this.cardCost.isVisible = true;
+        if (this.cardMask) this.cardMask.isVisible = true;
+        this.isVisible = true;
+
+        if (position) {
+            this.box.position = position;
+        }
+
+        if (rotation) {
+            this.box.rotationQuaternion = rotation;
+        }
+    }
+
+    public hide(): void {
+        this.box.isVisible = false;
+        if (this.cardName) this.cardName.isVisible = false;
+        if (this.cardAttack) this.cardAttack.isVisible = false;
+        if (this.cardHP) this.cardHP.isVisible = false;
+        if (this.cardCost) this.cardCost.isVisible = false;
+        if (this.cardMask) this.cardMask.isVisible = false;
+        this.isVisible = false;
+    }
+
+    constructor(scene: Scene, name: string, attack: string, HP: string, cost: string, portraitUrl = "", initSigilNum = 0, sigilsArr: Array<Sigil> | null = null) {
         this.nameValue = name;
         this.attackValue = attack;
         this.HPValue = HP;
@@ -207,8 +237,8 @@ export class Card {
         this.initSigilNum = initSigilNum;
         // this.sigilsArr = sigilsArr;
 
-        if(sigilsArr){
-            sigilsArr.forEach((sig:Sigil, index) => {
+        if (sigilsArr) {
+            sigilsArr.forEach((sig: Sigil, index) => {
                 this.curSigilNum = index;
                 sig.addFun(this);
             })
@@ -290,7 +320,7 @@ export class Card {
             ctx.drawImage(bg_img, 0, 0, 50, 50);
             ctx.drawImage(offscreenCanvas, 7.5, 7.5, 35, 35);
 
-            let sigilEmissiveTexture = new DynamicTexture("sigilEmissiveTexture", { width: 50, height: 50 });
+            let sigilEmissiveTexture = new DynamicTexture("sigilEmissiveTexture", {width: 50, height: 50});
             sigilEmissiveTexture.hasAlpha = true;
             sigilEmissiveTexture.getContext().drawImage(offscreenCanvas, 7.5, 7.5, 35, 35);
             sigilEmissiveTexture.update();
@@ -302,7 +332,7 @@ export class Card {
 }
 
 export class StoatCard extends Card {
-    private talkAnimationFrameId:number|null = null;
+    private talkAnimationFrameId: number | null = null;
     private isTalkAnimating = false;
     // 用来切换嘴巴状态的变量
     private mouthState = "closed"; // "open" 或 "closed"
@@ -485,7 +515,7 @@ export class StoatCard extends Card {
 
 
 // 异步加载图像，返回promise对象
-export function loadImage(src:string) {
+export function loadImage(src: string) {
     return new Promise((resolve, reject) => {
         const img = new Image();
         img.crossOrigin = "anonymous";
@@ -496,7 +526,6 @@ export function loadImage(src:string) {
         img.src = src;
     })
 }
-
 
 
 //
