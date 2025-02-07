@@ -108,9 +108,9 @@ const createScene = async (canvas: HTMLCanvasElement | null) => {
     const deckManager1 = CreateDeckMesh1(scene);
     const deckManager2 = CreateDeckMesh2(scene);
 
-
-    deckManager1.updateDeck(50);
-    deckManager2.updateDeck(50);
+    deckManager1.initDeck([ant, stoat]);
+    // deckManager1.updateDeck(20);
+    deckManager2.updateDeck(15);
 
 
     // const bat = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_bat.png");
@@ -118,8 +118,6 @@ const createScene = async (canvas: HTMLCanvasElement | null) => {
         await import('@babylonjs/inspector');
         scene.debugLayer.show();
     }
-
-
 
     engine.runRenderLoop(() => {
         scene.render();
