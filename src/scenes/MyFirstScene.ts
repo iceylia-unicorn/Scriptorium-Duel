@@ -24,12 +24,14 @@ const createScene = async (canvas: HTMLCanvasElement | null) => {
     const battleFiledCamera = new UniversalCamera("battleFiledCamera", new Vector3(-2.1197295966570405e-16, 30.95540428161621, 3.0498669147491455), scene);
 
     // battleDefaultCamera.inputs.clear();
+    battleFiledCamera.inputs.clear();
 
+    battleDefaultCamera.target = new Vector3(-0.7421837071371951, 18.92943459100077, -18.71784432927812)
+    battleDefaultCamera.rotation =new Vector3(0.9265418204398328, -0.002379704337376702, 0);
+    battleFiledCamera.target = new Vector3(-0.00110119057385674, 22.91462588299441, 2.961780354354939)
+    battleFiledCamera.position = new Vector3(0.001789230271242559, 23.887523651123047, 3.192997932434082);
 
-    // replacedCamera.inputs.clear();
-    battleDefaultCamera.target = new Vector3(-0.731189471204295, 18.946959102290165, -18.695269226997905)
-    battleFiledCamera.target = new Vector3(-2.018536274440631e-16, 29.958824038505554, 2.9672362953424454)
-    battleFiledCamera.rotation = new Vector3(1.550545999999994, 6.295685487522346, 0)
+    battleFiledCamera.rotation = new Vector3(1.3374487740158987, -3.129092434948043, -3.141592561379248);
 
     scene.activeCamera = battleDefaultCamera;
     // Function to switch cameras
@@ -86,6 +88,7 @@ const createScene = async (canvas: HTMLCanvasElement | null) => {
 
     const stoat = new StoatCard(scene, "白鼬", "1", "1", "1");
     stoat.box.position.x = 5;
+    stoat.show();
     // stoat.changeName("长老白鼬");
     // stoat.startTalkAnimate();
     new TableManager(scene);
@@ -108,10 +111,13 @@ const createScene = async (canvas: HTMLCanvasElement | null) => {
 
     ability_tristrike.addFun(ant);
 
+    const ant2 = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_lice.png",2, [ability_strafe,ability_tristrike]);
+    const ant3 = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_lice.png",2, [ability_strafe,ability_tristrike]);
+
     const deckManager1 = CreateDeckMesh1(scene);
     const deckManager2 = CreateDeckMesh2(scene);
 
-    deckManager1.initDeck([ant, stoat]);
+    deckManager1.initDeck([ant, stoat,ant2, ant3]);
     // deckManager1.updateDeck(20);
     deckManager2.updateDeck(15);
 

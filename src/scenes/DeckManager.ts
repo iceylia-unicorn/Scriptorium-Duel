@@ -98,9 +98,8 @@ export class DeckManager {
     private _deckPosition: Vector3; // 牌堆位置
     private _isAnimating: boolean = false; // 是否进行抽卡动画
     private _deckRotation = new Vector3(1.1502502007897775, 3.141592653589793, 3.141592653589793)
-    // private squirrelInitNum = 10; //初始松鼠卡数量
-    // private handCardsInitNum = 4; //初始手牌数量
 
+    static handTransformNode: TransformNode;
     // 抽牌堆（未使用的卡）
     drawPile: Card[] = [];
     // 弃牌堆（已使用/死亡的卡）
@@ -125,47 +124,16 @@ export class DeckManager {
         this._scene = scene;
         this._deckPosition = _deckPosition;
         this._baseCardMesh = this._createBaseCard(texturePath);
+        if (!DeckManager.handTransformNode) {
+            DeckManager.handTransformNode = new TransformNode("handTransformNode");
+            DeckManager.handTransformNode.position = new Vector3(-0.2449856400489807, 8.417621612548828, -15.809992790222168);
+            DeckManager.handTransformNode.rotation = new Vector3(1.1294828805629191, 5.147569593710105e-18, 5.698802770519521e-18);
+        }
     }
 
     // 洗牌算法
     private shuffle(cards: Card[]): Card[] {
         return cards.sort(() => Math.random() - 0.5);
-    }
-
-    // 手牌布局参数
-    private handArea = {
-        startX: -8,
-        endX: 8,
-        y: -10,
-        z: 0,
-        cardSpacing: 2.2
-    };
-
-    // 更新手牌位置
-    updateHandLayout() {
-        this.handCards.forEach((card, index) => {
-            const totalWidth = (this.handCards.length - 1) * this.handArea.cardSpacing;
-            const startPos = this.handArea.startX + (this.handArea.endX - this.handArea.startX - totalWidth) / 2;
-
-            card.box.position = new Vector3(
-                startPos + index * this.handArea.cardSpacing,
-                this.handArea.y,
-                this.handArea.z
-            );
-
-            // 添加悬停效果
-            card.box.actionManager = new ActionManager();
-            card.box.actionManager.registerAction(
-                new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, () => {
-                    card.box.position.y += 0.5; // 悬停抬升
-                })
-            );
-            card.box.actionManager.registerAction(
-                new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, () => {
-                    card.box.position.y = this.handArea.y;
-                })
-            );
-        });
     }
 
     // 创建基础卡牌模型（仅背面）
@@ -261,11 +229,125 @@ export class DeckManager {
         const newCard = this.drawPile.pop();
         if (newCard) {
             this.handCards.push(newCard);
+            newCard.show(DeckManager.handTransformNode, Vector3.Zero(), Vector3.Zero());
             this.updateHandLayout();
         }
     }
-}
 
+// 更新手牌位置
+    updateHandLayout() {
+        const cardCount = this.handCards.length;
+        if (cardCount === 0) return;
+
+        // 基础参数
+        const centerX = 0;           // 中心点X坐标
+        const baseY = 0;            // 基础Y坐标
+        const cardSpacing = 1.5;    // 卡牌间距
+        const baseZ = -0.5;         // 基础Z坐标
+        const deltaZ = 0.04;        // 每一张牌遮挡z轴的距离
+        const deltaY = 1;
+        const deltaRotationZ = -0.05;   // 每张卡牌之间的旋转角度差值
+
+        // 计算起始X位置（使卡牌组居中）
+        const totalWidth = (cardCount - 1) * cardSpacing;
+        const startX = centerX - totalWidth / 2;
+        const middleIndex = Math.floor(cardCount / 2);
+
+        // 记录当前悬浮的卡牌索引和最后一次的悬浮状态
+        let hoveredIndex = -1;
+        let lastHoveredState = {
+            index: -1,
+            wasEdge: false
+        };
+
+        // 检查是否是边缘卡牌
+        const isEdgeCard = (index: number) => {
+            return index === 0 || index === cardCount - 1;
+        };
+
+        // 更新所有卡牌的位置和旋转
+        const updateCardPositions = () => {
+            this.handCards.forEach((card, index) => {
+                const xPos = startX + index * cardSpacing;
+
+                // 计算旋转角度（以中心为0，两边对称）
+                const rotationZ = (index - middleIndex) * deltaRotationZ;
+                card.box.rotation = new Vector3(0, 0, rotationZ);
+
+                // 计算Z轴位置
+                let zPos = baseZ;
+                let yPos = baseY;
+
+                // 如果当前有悬浮卡牌或最后一次悬浮是边缘卡牌
+                if (hoveredIndex !== -1 || (lastHoveredState.wasEdge && lastHoveredState.index !== -1)) {
+                    //当前悬浮，或边缘悬浮。
+                    const effectiveHoverIndex = hoveredIndex !== -1 ? hoveredIndex : lastHoveredState.index;
+                    if (index === effectiveHoverIndex) {
+                        // 悬浮的卡牌位于最上层
+                        zPos = baseZ - deltaZ;
+                        if(hoveredIndex === index) {
+                            yPos =baseY+ deltaY;
+                        }
+                    } else {
+                        // 计算与悬浮卡牌的距离
+                        const distance = Math.abs(index - effectiveHoverIndex);
+                        // z轴位置随着距离增加而递减（数值增大）
+                        zPos = baseZ + distance * deltaZ;
+                    }
+                } else {
+                    // 初始状态：左边的牌在上面（反转堆叠顺序）
+                    zPos = baseZ + (cardCount - 1 - index) * deltaZ;
+                }
+
+                card.box.position = new Vector3(xPos, yPos, zPos);
+            });
+        };
+
+        // 设置每张卡牌的交互
+        this.handCards.forEach((card, index) => {
+            if (!card.box.actionManager) {
+                card.box.actionManager = new ActionManager(this._scene);
+            } else {
+                card.box.actionManager.actions = [];
+            }
+
+            // 鼠标悬浮效果
+            card.box.actionManager.registerAction(
+                new ExecuteCodeAction(
+                    ActionManager.OnPointerOverTrigger,
+                    () => {
+                        hoveredIndex = index;
+                        // 如果是边缘卡牌，记录状态
+                        if (isEdgeCard(index)) {
+                            lastHoveredState.index = index;
+                            lastHoveredState.wasEdge = true;
+                        }
+                        updateCardPositions();
+                    }
+                )
+            );
+
+            // 鼠标移出效果
+            card.box.actionManager.registerAction(
+                new ExecuteCodeAction(
+                    ActionManager.OnPointerOutTrigger,
+                    () => {
+                        hoveredIndex = -1;
+                        // 如果不是边缘卡牌，清除最后的悬浮状态
+                        if (!isEdgeCard(index)) {
+                            lastHoveredState.index = -1;
+                            lastHoveredState.wasEdge = false;
+                        }
+                        updateCardPositions();
+                    }
+                )
+            );
+        });
+
+        // 初始化卡牌位置
+        updateCardPositions();
+    }
+}
 export function CreateDeckMesh1(scene: Scene) {
     const deckManager = new DeckManager(
         new Vector3(10.003179550170898, 3.130772113800049, -15.830220222473145),
