@@ -3,10 +3,10 @@ import {
     Color3,
     DynamicTexture, type ICanvasRenderingContext,
     Mesh,
-    MeshBuilder, Quaternion,
+    MeshBuilder,
     Scene,
     StandardMaterial,
-    Texture,
+    Texture, type TransformNode,
     Vector3
 } from "@babylonjs/core";
 
@@ -64,7 +64,18 @@ export class Card {
         this.cardHPTexture.drawText(this.HPValue, null, null, "bold 300px monospace", "black", "transparent", true, true);//assign null to positon cause center position.
     }
 
-    public show(position?: Vector3, rotation?: Quaternion): void {
+    public show(parent?:Mesh|TransformNode, position?: Vector3, rotation?: Vector3): void {
+        if(parent){
+            this.box.parent = parent;
+
+        }
+        if (position) {
+            this.box.position = position;
+        }
+
+        if (rotation) {
+            this.box.rotation = rotation;
+        }
         if(this.isVisible) return;
         this.box.isVisible = true;
         if (this.cardName) this.cardName.isVisible = true;
@@ -74,13 +85,6 @@ export class Card {
         if (this.cardMask) this.cardMask.isVisible = true;
         this.isVisible = true;
 
-        if (position) {
-            this.box.position = position;
-        }
-
-        if (rotation) {
-            this.box.rotationQuaternion = rotation;
-        }
     }
 
     public hide(): void {
@@ -156,6 +160,7 @@ export class Card {
         this.cardCost.position = new Vector3(1.0254558324813843, 1.5573967695236206, Card.zIndex1);// (debugNode as BABYLON.Mesh)
         //Create base_card_mat and assign it to mesh
         let baseCardMat = new StandardMaterial("baseCardMat");
+        baseCardMat.specularColor = Color3.Black(); // 完全禁用高光反射
         baseCardMat.diffuseTexture = new Texture(staticUrl + "images/cards/base card/card_empty_sprite.png");
         this.box.material = baseCardMat;
 
@@ -178,6 +183,13 @@ export class Card {
         cardHPMat.diffuseTexture = this.cardHPTexture;
         cardCostMat.diffuseTexture = cardCostTexture;
         cardMaskMat.diffuseTexture = this.maskTexture;
+
+        cardNameMat.specularColor = Color3.Black();
+        cardAttackMat.specularColor = Color3.Black();
+        cardHPMat.specularColor = Color3.Black();
+        cardCostMat.specularColor = Color3.Black();
+        cardMaskMat.specularColor = Color3.Black();
+
 
         //draw text of texture
         cardNameMat.diffuseTexture.hasAlpha = true;  // Enable alpha transparency for the texture
@@ -211,6 +223,7 @@ export class Card {
 
             cardPortraitMat.diffuseTexture = cardPortraitTexture;
             cardPortraitMat.diffuseTexture.hasAlpha = true;
+            cardPortraitMat.specularColor = Color3.Black();
             // portraitUrl
             let portraitImg = new Image();
             portraitImg.crossOrigin = "anonymous";
@@ -246,6 +259,8 @@ export class Card {
             })
         }
 
+        this.hide();
+
         // // transparent texture
         // // 创建一个完全透明的纹理（创建一个 1x1 大小的透明纹理）
         // let transparentTexture = new DynamicTexture("transparentTexture", {width: 1, height: 1}, scene);
@@ -271,6 +286,7 @@ export class Card {
         let sigilTexture = new DynamicTexture("sigilTexture", {width: 50, height: 50});
         sigilTexture.hasAlpha = true;
         sigilMat.diffuseTexture = sigilTexture;
+        sigilMat.specularColor = Color3.Black();
         sigilMesh.material = sigilMat;
 
         let curSigilNum = this.curSigilNum++;
@@ -350,15 +366,16 @@ export class StoatCard extends Card {
 
     constructor(scene: Scene, name: string, attack: string, HP: string, cost: string) {
         super(scene, name, attack, HP, cost);
-        let cardWidth = 4, cardHeight = 6;
-        // stoat
-        let stoat_body = MeshBuilder.CreatePlane("stoat_body", {height: cardHeight, width: cardWidth});
+        // let stoat_body = MeshBuilder.CreatePlane("stoat_body", {height: cardHeight, width: cardWidth});
+        let stoat_body = MeshBuilder.CreatePlane("stoat_body", {
+            height: 4.3742176294, // 直接将scaling乘入尺寸
+            width: 3.1520229398
+        });
         stoat_body.parent = this.box;
-        stoat_body.position = new Vector3(6.9624457359313965, -2.2657313346862793, -0.050999999046325684);
-        stoat_body.scaling = new Vector3(4.160670280456543, 1.458072543144226, 1);
+        stoat_body.position = new Vector3(0.1708230972290039, -0.12214275449514389, -0.050999999046325684);
 
 
-        this.stoat_body_texture = new DynamicTexture("stoat_body_texture", {width: 512, height: 256});
+        this.stoat_body_texture = new DynamicTexture("stoat_body_texture", {width: 96.9696969697, height: 128});
 
         this.stoat_body_context = this.stoat_body_texture.getContext();
 
@@ -367,6 +384,7 @@ export class StoatCard extends Card {
 
         stoat_body_mat.diffuseTexture = this.stoat_body_texture;
         stoat_body_mat.diffuseTexture.hasAlpha = true;
+        stoat_body_mat.specularColor = Color3.Black();
 
         let stoat_body_img = new Image();
         this.stoat_mouth_img = new Image();
