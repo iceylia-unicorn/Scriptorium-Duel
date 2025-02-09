@@ -9,18 +9,19 @@ import {
     Texture, type TransformNode,
     Vector3
 } from "@babylonjs/core";
-
+import {loadImage, PRESET_CARDS} from "./Card-database.ts";
+import type {CardCost, Sigil} from "./Card-types.ts";
 // 初始印记对应的位置。
 const addedPosition = [[-1.23, 1.6], [-1.23, 0.3]];
 const sigilWidth = 1.38;
-export type Sigil = typeof ability_tristrike;
+
 
 export class Card {
     box: Mesh;
     cardName: Mesh;
     cardAttack: Mesh;
     cardHP: Mesh;
-    cardCost: Mesh;
+    // cardCost: Mesh;
     cardMask: Mesh;
 
     static zIndex1 = -0.051;
@@ -46,8 +47,6 @@ export class Card {
     beAttackedFuns = []; // 被攻击时的回调函数
 
     isVisible: boolean;//是否可见。
-
-
     public setName(value: string) {
         this.nameValue = value;
         this.cardNameTexture.clear();
@@ -64,8 +63,8 @@ export class Card {
         this.cardHPTexture.drawText(this.HPValue, null, null, "bold 300px monospace", "black", "transparent", true, true);//assign null to positon cause center position.
     }
 
-    public show(parent?:Mesh|TransformNode, position?: Vector3, rotation?: Vector3): void {
-        if(parent){
+    public show(parent?: Mesh | TransformNode, position?: Vector3, rotation?: Vector3): void {
+        if (parent) {
             this.box.parent = parent;
 
         }
@@ -76,29 +75,20 @@ export class Card {
         if (rotation) {
             this.box.rotation = rotation;
         }
-        if(this.isVisible) return;
-        this.box.isVisible = true;
-        if (this.cardName) this.cardName.isVisible = true;
-        if (this.cardAttack) this.cardAttack.isVisible = true;
-        if (this.cardHP) this.cardHP.isVisible = true;
-        if (this.cardCost) this.cardCost.isVisible = true;
-        if (this.cardMask) this.cardMask.isVisible = true;
+        if (this.isVisible) return;
+        this.box.setEnabled(true);
+        this.box.getDescendants().forEach(child => child.setEnabled(true));
         this.isVisible = true;
-
     }
 
     public hide(): void {
-        if(!this.isVisible) return;
-        this.box.isVisible = false;
-        if (this.cardName) this.cardName.isVisible = false;
-        if (this.cardAttack) this.cardAttack.isVisible = false;
-        if (this.cardHP) this.cardHP.isVisible = false;
-        if (this.cardCost) this.cardCost.isVisible = false;
-        if (this.cardMask) this.cardMask.isVisible = false;
+        if (!this.isVisible) return;
+        this.box.setEnabled(false);
+        this.box.getDescendants().forEach(child => child.setEnabled(false));
         this.isVisible = false;
     }
 
-    constructor(scene: Scene, name: string, attack: string, HP: string, cost: string, portraitUrl = "", initSigilNum = 0, sigilsArr: Array<Sigil> | null = null) {
+    constructor(scene: Scene, name: string, attack: string, HP: string, cost: CardCost, portraitUrl = "", initSigilNum = 0, sigilsArr: Array<Sigil> | null = null) {
         this.nameValue = name;
         this.attackValue = attack;
         this.HPValue = HP;
@@ -127,10 +117,7 @@ export class Card {
             width: cardWidth,
             height: cardHeight / 5
         }, scene);
-        this.cardCost = MeshBuilder.CreatePlane("cardCost", {
-            width: cardWidth / 2.4,
-            height: cardWidth / 2.4
-        }, scene);
+
         this.cardMask = MeshBuilder.CreatePlane("cardMask", {
             width: cardWidth,
             height: cardHeight
@@ -140,13 +127,11 @@ export class Card {
         this.cardName.parent = this.box;
         this.cardAttack.parent = this.box;
         this.cardHP.parent = this.box;
-        this.cardCost.parent = this.box;
         this.cardMask.parent = this.box;
 
         this.cardName.position.z = -cardDeep / 2 - 0.001;
         this.cardAttack.position.z = -cardDeep / 2 - 0.001;
         this.cardHP.position.z = -cardDeep / 2 - 0.001;
-        this.cardCost.position.z = -cardDeep / 2 - 0.001;
         this.cardMask.position.z = -cardDeep / 2 - 0.002;
 
         this.cardName.position.y = 2.4;
@@ -157,7 +142,6 @@ export class Card {
         this.cardHP.scaling = new Vector3(0.38578611612319946, 0.7965781688690186, 0.9886031150817871);// (debugNode as BABYLON.Mesh)
         this.cardHP.position = new Vector3(1.4026998472213745, -2.1753363609313965, Card.zIndex1);// (debugNode as BABYLON.Mesh)
 
-        this.cardCost.position = new Vector3(1.0254558324813843, 1.5573967695236206, Card.zIndex1);// (debugNode as BABYLON.Mesh)
         //Create base_card_mat and assign it to mesh
         let baseCardMat = new StandardMaterial("baseCardMat");
         baseCardMat.specularColor = Color3.Black(); // 完全禁用高光反射
@@ -168,26 +152,53 @@ export class Card {
         this.cardNameTexture = new DynamicTexture("cardNameTexture", {width: 512, height: 256});
         this.cardAttackTexture = new DynamicTexture("cardAttackTexture", {width: 512, height: 256});
         this.cardHPTexture = new DynamicTexture("cardHPTexture", {width: 512, height: 256});
-        let cardCostTexture = new Texture(staticUrl + "images/cards/cost/cost_1blood.png");
+        if(cost != "0"){
+            const cardCost = MeshBuilder.CreatePlane("cardCost", {
+                width: cardWidth / 2.4,
+                height: cardWidth / 2.4
+            }, scene);
+            cardCost.parent = this.box;
+            cardCost.position = new Vector3(1.0254558324813843, 1.5573967695236206, Card.zIndex1);// (debugNode as BABYLON.Mesh)
+
+            let cardCostTexture;
+
+            switch (cost) {
+                case '1':
+                    cardCostTexture = new Texture(staticUrl + "images/cards/cost/cost_1blood.png");
+                    break;
+                case '2':
+                    cardCostTexture = new Texture(staticUrl + "images/cards/cost/cost_2blood.png");
+                    break;
+                case '3':
+                    cardCostTexture = new Texture(staticUrl + "images/cards/cost/cost_3blood.png");
+                    break;
+                case '4':
+                    cardCostTexture = new Texture(staticUrl + "images/cards/cost/cost_4blood.png");
+                    break;
+            }
+            let cardCostMat = new StandardMaterial("cardCostMat");
+            cardCostMat.diffuseTexture = cardCostTexture;
+            cardCostMat.diffuseTexture.hasAlpha = true;
+            cardCostMat.specularColor = Color3.Black();
+            cardCost.material = cardCostMat;
+        }
+
         this.maskTexture = new DynamicTexture("maskTexture", {width: 200, height: 200});
 
         //Create components material
         let cardNameMat = new StandardMaterial("cardNameMat");
         let cardAttackMat = new StandardMaterial("cardAttackMat");
         let cardHPMat = new StandardMaterial("cardHPMat");
-        let cardCostMat = new StandardMaterial("cardCostMat");
         let cardMaskMat = new StandardMaterial("cardMaskMat");
 
         cardNameMat.diffuseTexture = this.cardNameTexture;
         cardAttackMat.diffuseTexture = this.cardAttackTexture;
         cardHPMat.diffuseTexture = this.cardHPTexture;
-        cardCostMat.diffuseTexture = cardCostTexture;
         cardMaskMat.diffuseTexture = this.maskTexture;
 
         cardNameMat.specularColor = Color3.Black();
         cardAttackMat.specularColor = Color3.Black();
         cardHPMat.specularColor = Color3.Black();
-        cardCostMat.specularColor = Color3.Black();
         cardMaskMat.specularColor = Color3.Black();
 
 
@@ -195,18 +206,16 @@ export class Card {
         cardNameMat.diffuseTexture.hasAlpha = true;  // Enable alpha transparency for the texture
         cardAttackMat.diffuseTexture.hasAlpha = true;
         cardHPMat.diffuseTexture.hasAlpha = true;
-        cardCostMat.diffuseTexture.hasAlpha = true;
         cardMaskMat.diffuseTexture.hasAlpha = true;
 
 
-        this.cardNameTexture.drawText(this.nameValue, null, null, "bold 90px monospace", "gray", "transparent", true, true);//assign null to position cause center position.
-        this.cardAttackTexture.drawText(this.attackValue, null, null, "bold 300px monospace", "black", "transparent", true, true);//assign null to positon cause center position.
-        this.cardHPTexture.drawText(this.HPValue, null, null, "bold 300px monospace", "black", "transparent", true, true);//assign null to positon cause center position.
+        this.cardNameTexture.drawText(this.nameValue, null, null, "bold 90px monospace", "gray", "transparent", true, true);
+        this.cardAttackTexture.drawText(this.attackValue, null, null, "bold 300px monospace", "black", "transparent", true, true);
+        this.cardHPTexture.drawText(this.HPValue, null, null, "bold 300px monospace", "black", "transparent", true, true);
 
         this.cardName.material = cardNameMat;
         this.cardAttack.material = cardAttackMat;
         this.cardHP.material = cardHPMat;
-        this.cardCost.material = cardCostMat;
         this.cardMask.material = cardMaskMat;
 
 
@@ -260,14 +269,6 @@ export class Card {
         }
 
         this.hide();
-
-        // // transparent texture
-        // // 创建一个完全透明的纹理（创建一个 1x1 大小的透明纹理）
-        // let transparentTexture = new DynamicTexture("transparentTexture", {width: 1, height: 1}, scene);
-        //
-        // // 获取纹理的绘制上下文
-        // transparentTexture.getContext().clearRect(0, 0, 1, 1);
-
     }
 
     // 绘制印记
@@ -347,6 +348,25 @@ export class Card {
         sigilTexture.update();
         return;
     }
+
+    // 使用卡牌数据创建卡牌的通用工厂方法
+    static Create(scene: Scene, presetKey: string, customName?: string): Card {
+        const preset = PRESET_CARDS[presetKey];
+        if (!preset) {
+            throw new Error(`Unknown preset card: ${presetKey}`);
+        }
+
+        return new Card(
+            scene,
+            customName || preset.name,
+            preset.attack,
+            preset.hp,
+            preset.cost,
+            preset.portraitUrl,
+            preset.initSigilNum,
+            preset.sigilsArr
+        );
+    }
 }
 
 export class StoatCard extends Card {
@@ -364,7 +384,7 @@ export class StoatCard extends Card {
     private readonly stoat_mouth_open_img;
 
 
-    constructor(scene: Scene, name: string, attack: string, HP: string, cost: string) {
+    constructor(scene: Scene, name: string, attack: string, HP: string, cost: CardCost) {
         super(scene, name, attack, HP, cost);
         // let stoat_body = MeshBuilder.CreatePlane("stoat_body", {height: cardHeight, width: cardWidth});
         let stoat_body = MeshBuilder.CreatePlane("stoat_body", {
@@ -432,7 +452,6 @@ export class StoatCard extends Card {
         this.stoat_mouth_img.onload = checkAllImagesLoaded;
         this.stoat_mouth_open_img.onload = checkAllImagesLoaded;
     }
-
     public talk(text: string): void {
         this.startTalkAnimate();
         let currentText = "";
@@ -458,7 +477,16 @@ export class StoatCard extends Card {
         }, 400)
         // this.stopTalkAnimate();
     }
-
+    static Create(scene: Scene): Card {
+        const preset = PRESET_CARDS["STOAT"];
+        return new StoatCard(
+            scene,
+            preset.name,
+            preset.attack,
+            preset.hp,
+            preset.cost,
+        );
+    }
     private talkAnimate = (() => {
         if (!this.isTalkAnimating) return;
         let currentTime = performance.now();
@@ -534,44 +562,3 @@ export class StoatCard extends Card {
 // /root/graduation_project/html/static/images/cards/misc/card_slot_heightmap.png
 
 
-// 异步加载图像，返回promise对象
-export function loadImage(src: string) {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => {
-            resolve(img);
-        };
-        img.onerror = reject;  // 图像加载失败
-        img.src = src;
-    })
-}
-
-
-//
-export const ability_tristrike = {
-    name: "Tristrike",
-    description: "攻击时，会同时攻击三个方向。",
-    addFun: (card: Card) => {
-        // 添加功能
-        card.strikeFuns.push(() => {
-            console.log("此时攻击三个方向");
-        });
-        card.sigilsArr.push(ability_tristrike);
-        // 添加图标
-        card.drawSigil(staticUrl + "images/cards/sigils/ability_tristrike.png");
-
-    }
-}
-export const ability_strafe = {
-    name: "Tristrike",
-    description: "攻击后按指定方向移动。",
-    addFun: (card: Card) => {
-        // 添加图标
-        card.drawSigil(staticUrl + "images/cards/sigils/ability_strafe.png");
-        // 添加功能
-        card.strikeFuns.push(() => {
-            console.log("此时攻击三个方向");
-        });
-    }
-}

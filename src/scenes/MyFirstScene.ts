@@ -11,8 +11,9 @@ import {
 
 
 import {staticUrl} from "../api"
-import {ability_strafe, ability_tristrike, Card, StoatCard} from "./Card.ts";
+import {Card, StoatCard} from "./Card.ts";
 import {CreateDeckMesh1, CreateDeckMesh2, TableManager} from "./DeckManager.ts";
+import {ability_strafe, ability_tristrike} from "./Card-database.ts";
 
 
 
@@ -85,9 +86,10 @@ const createScene = async (canvas: HTMLCanvasElement | null) => {
 
     // This creates and positions a free camera (non-mesh)
 
-
-    const stoat = new StoatCard(scene, "白鼬", "1", "1", "1");
+    // const stoat = new StoatCard(scene, "白鼬", "1", "1", "1");
+    const stoat = StoatCard.Create(scene);
     stoat.box.position.x = 5;
+
     stoat.show();
     // stoat.changeName("长老白鼬");
     // stoat.startTalkAnimate();
@@ -115,17 +117,18 @@ const createScene = async (canvas: HTMLCanvasElement | null) => {
     const ant3 = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_lice.png",2, [ability_strafe,ability_tristrike]);
 
     const deckManager1 = CreateDeckMesh1(scene);
-    const deckManager2 = CreateDeckMesh2(scene);
+
+    const squirrelDeckManager = CreateDeckMesh2(scene);
 
     deckManager1.initDeck([ant, stoat,ant2, ant3]);
     // deckManager1.updateDeck(20);
-    deckManager2.updateDeck(15);
+    squirrelDeckManager.initSquirrelDeck(15);
 
 
     // const bat = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_bat.png");
     if (import.meta.env.MODE === 'development') {
         await import('@babylonjs/inspector');
-        scene.debugLayer.show();
+        await scene.debugLayer.show();
     }
 
     engine.runRenderLoop(() => {

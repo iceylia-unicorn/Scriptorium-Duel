@@ -9,12 +9,13 @@ import {
     Vector3
 } from "@babylonjs/core";
 import {staticUrl} from "../api";
-import type {Card} from "./Card.ts";
+import {Card} from "./Card.ts";
+import {CARD_NAMES} from "./Card-database.ts";
 
 
 export class TableManager {
-    private table: Mesh;
-    private _scene: Scene;
+    private readonly table: Mesh;
+    private readonly _scene: Scene;
     public clawTransformNode: TransformNode;
     static readonly zlevel1 = -0.51;
 
@@ -92,8 +93,8 @@ export class TableManager {
 
 // 牌堆管理器类
 export class DeckManager {
-    private _scene: Scene;
-    private _baseCardMesh: Mesh; // 基础卡牌模型
+    private readonly _scene: Scene;
+    private readonly _baseCardMesh: Mesh; // 基础卡牌模型
     private _cardInstances: InstancedMesh[] = []; // 卡牌实例数组
     private _deckPosition: Vector3; // 牌堆位置
     private _isAnimating: boolean = false; // 是否进行抽卡动画
@@ -101,16 +102,25 @@ export class DeckManager {
 
     static handTransformNode: TransformNode;
     // 抽牌堆（未使用的卡）
-    drawPile: Card[] = [];
+     drawPile: Card[] = [];
     // 弃牌堆（已使用/死亡的卡）
     discardPile: Card[] = [];
     // 手牌区（当前持有的卡）
-    handCards: Card[] = [];
+    static handCards: Card[] = [];
+
 
     // 初始化牌堆
     initDeck(initialCards: Card[]) {
         this.updateDeck(initialCards.length);
         this.drawPile = this.shuffle([...initialCards]); // 洗牌
+    }
+
+    // 初始化松鼠牌堆
+    initSquirrelDeck(initialNum: number) {
+        this.updateDeck(initialNum);
+        for(let index = 0; index< initialNum; index++){
+            this.drawPile.push(Card.Create(this._scene,CARD_NAMES.Squirrel));
+        }
     }
 
     // 卡牌堆叠参数
@@ -228,7 +238,7 @@ export class DeckManager {
         );
         const newCard = this.drawPile.pop();
         if (newCard) {
-            this.handCards.push(newCard);
+            DeckManager.handCards.push(newCard);
             newCard.show(DeckManager.handTransformNode, Vector3.Zero(), Vector3.Zero());
             this.updateHandLayout();
         }
@@ -236,13 +246,13 @@ export class DeckManager {
 
 // 更新手牌位置
     updateHandLayout() {
-        const cardCount = this.handCards.length;
+        const cardCount = DeckManager.handCards.length;
         if (cardCount === 0) return;
 
         // 基础参数
         const centerX = 0;           // 中心点X坐标
         const baseY = 0;            // 基础Y坐标
-        const cardSpacing = 1.5;    // 卡牌间距
+        let cardSpacing = 1.2;    // 卡牌间距
         const baseZ = -0.5;         // 基础Z坐标
         const deltaZ = 0.04;        // 每一张牌遮挡z轴的距离
         const deltaY = 1;
@@ -267,7 +277,7 @@ export class DeckManager {
 
         // 更新所有卡牌的位置和旋转
         const updateCardPositions = () => {
-            this.handCards.forEach((card, index) => {
+            DeckManager.handCards.forEach((card, index) => {
                 const xPos = startX + index * cardSpacing;
 
                 // 计算旋转角度（以中心为0，两边对称）
@@ -304,7 +314,7 @@ export class DeckManager {
         };
 
         // 设置每张卡牌的交互
-        this.handCards.forEach((card, index) => {
+        DeckManager.handCards.forEach((card, index) => {
             if (!card.box.actionManager) {
                 card.box.actionManager = new ActionManager(this._scene);
             } else {
