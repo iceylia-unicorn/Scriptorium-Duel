@@ -1,11 +1,9 @@
 import {
-    Camera,
     Color3,
     Engine,
     MeshBuilder,
     Scene, SpotLight,
     StandardMaterial,
-    UniversalCamera,
     Vector3
 } from "@babylonjs/core";
 
@@ -14,51 +12,14 @@ import {staticUrl} from "../api"
 import {Card, StoatCard} from "./Card.ts";
 import {CreateDeckMesh1, CreateDeckMesh2, TableManager} from "./DeckManager.ts";
 import {ability_strafe, ability_tristrike} from "./Card-database.ts";
+import {CameraManager} from "./CamaraManager.ts";
 
 
 
 const createScene = async (canvas: HTMLCanvasElement | null) => {
     const engine = new Engine(canvas);
     const scene = new Scene(engine);
-    // This creates and positions a free camera (non-mesh)
-    const battleDefaultCamera = new UniversalCamera("battleDefaultCamera", new Vector3(-0.7407544520688198, 19.72898229374219, -19.318445146053843), scene); //
-    const battleFiledCamera = new UniversalCamera("battleFiledCamera", new Vector3(-2.1197295966570405e-16, 30.95540428161621, 3.0498669147491455), scene);
-
-    // battleDefaultCamera.inputs.clear();
-    battleFiledCamera.inputs.clear();
-
-    battleDefaultCamera.target = new Vector3(-0.7421837071371951, 18.92943459100077, -18.71784432927812)
-    battleDefaultCamera.rotation =new Vector3(0.9265418204398328, -0.002379704337376702, 0);
-    battleFiledCamera.target = new Vector3(-0.00110119057385674, 22.91462588299441, 2.961780354354939)
-    battleFiledCamera.position = new Vector3(0.001789230271242559, 23.887523651123047, 3.192997932434082);
-
-    battleFiledCamera.rotation = new Vector3(1.3374487740158987, -3.129092434948043, -3.141592561379248);
-
-    scene.activeCamera = battleDefaultCamera;
-    // Function to switch cameras
-    const switchCamera = function (camera: Camera) {
-        scene.activeCamera!.detachControl(canvas);
-        scene.activeCamera = camera;
-        camera.attachControl(canvas, true);
-    };
-
-    // Listen for keyboard events
-    window.addEventListener('keydown', function (event) {
-        if (event.key === 's' || event.key === 'S') {
-            switchCamera(battleDefaultCamera);
-        }
-        if (event.key === 'w' || event.key === 'W') {
-            switchCamera(battleFiledCamera);
-        }
-    });
-    // This targets the camera to scene origin
-    // battleDefaultCamera.setTarget(Vector3.Zero());
-    // battleDefaultCamera.inputs.addMouseWheel();
-
-    // This attaches the camera to the canvas
-    battleDefaultCamera.attachControl(canvas, true);
-
-
+    new CameraManager(canvas, scene);
     const spotLight = new SpotLight(
         "spotLight",
         new Vector3(-1.673872709274292, 18.254297256469727, -14.205820083618164),
