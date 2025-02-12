@@ -17,29 +17,25 @@ export class CameraManager {
     private battleDefaultCamera: UniversalCamera;
     private overlookCamera: UniversalCamera;
     private _scene: Scene;
+    private _canvas: HTMLCanvasElement | null;
     // private disabledKeys: Set<string>;
     private viewStatus: VIEWSTATUS = VIEWSTATUS.default;
-    private readonly defaultRotation = new Vector3(0.9265418204398328, -0.002379704337376702, 0);
+    private readonly defaultTarget = new Vector3(-0.7421837071371951, 18.92943459100077, -18.71784432927812);
 
     constructor(canvas: HTMLCanvasElement | null, scene: Scene) {
         this._scene = scene;
+        this._canvas = canvas;
         this.battleDefaultCamera = new UniversalCamera("battleDefaultCamera", new Vector3(-0.7407544520688198, 19.72898229374219, -19.318445146053843), scene);
         this.overlookCamera = new UniversalCamera("overlookCamera", new Vector3(-2.1197295966570405e-16, 30.95540428161621, 3.0498669147491455), this._scene);
-        this.battleDefaultCamera.target = new Vector3(-0.7421837071371951, 18.92943459100077, -18.71784432927812);
-        this.battleDefaultCamera.rotation = this.defaultRotation;
+        this.battleDefaultCamera.target = this.defaultTarget;
+        this.battleDefaultCamera.rotation = new Vector3(0.9265418204398328, -0.002379704337376702, 0);
         this.overlookCamera.target = new Vector3(-0.00110119057385674, 22.91462588299441, 2.961780354354939);
         this.overlookCamera.position = new Vector3(0.001789230271242559, 23.887523651123047, 3.192997932434082);
         this.overlookCamera.rotation.z = Math.PI;
-
         this.overlookCamera.rotation = new Vector3(1.3962634015954636, 3.141592653589793, 3.141592653589793);// (debugNode as BABYLON.FreeCamera)
         scene.activeCamera = this.battleDefaultCamera;
 
-        // Function to switch cameras
-        const switchCamera = (camera: Camera) => {
-            scene.activeCamera!.detachControl(canvas);
-            scene.activeCamera = camera;
-            camera.attachControl(canvas, true);
-        };
+
 
         // Listen for keyboard events
         window.addEventListener('keydown', (event) => {
@@ -50,7 +46,7 @@ export class CameraManager {
             switch (key) {
                 case 'w':
                     if(this.viewStatus === VIEWSTATUS.default){
-                        switchCamera(this.overlookCamera);
+                        this.switchCamera(this.overlookCamera);
                         this.viewStatus = VIEWSTATUS.battleOverlook;
                     }
                     else if(this.viewStatus === VIEWSTATUS.handCards){
@@ -60,7 +56,7 @@ export class CameraManager {
                     break;
                 case 's':
                     if(this.viewStatus === VIEWSTATUS.battleOverlook){
-                        switchCamera(this.battleDefaultCamera);
+                        this.switchCamera(this.battleDefaultCamera);
                         this.viewStatus = VIEWSTATUS.default;
                     }
                     else if(this.viewStatus === VIEWSTATUS.default){
@@ -90,7 +86,12 @@ export class CameraManager {
 
         this.overlookCamera.attachControl(canvas, true);
     }
-
+    // Function to switch cameras
+    private switchCamera(camera: Camera){
+        this._scene.activeCamera!.detachControl(this._canvas);
+        this._scene.activeCamera = camera;
+        camera.attachControl(this._canvas, true);
+    };
     private rotateCamera(camera: UniversalCamera, direction: string) {
         switch (direction) {
             case 'down':
@@ -109,5 +110,10 @@ export class CameraManager {
                 camera.rotation.x -= Math.PI / 18; // Rotate up 10 degrees
                 break;
         }
+    }
+    public switchToBattleOverlook() {
+        this.switchCamera(this.overlookCamera);
+        this.viewStatus = VIEWSTATUS.battleOverlook;
+        this.battleDefaultCamera.target = this.defaultTarget;
     }
 }

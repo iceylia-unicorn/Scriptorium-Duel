@@ -12,14 +12,14 @@ import {staticUrl} from "../api"
 import {Card, StoatCard} from "./Card.ts";
 import {CreateDeckMesh1, CreateDeckMesh2, TableManager} from "./DeckManager.ts";
 import {ability_strafe, ability_tristrike} from "./Card-database.ts";
-import {CameraManager} from "./CamaraManager.ts";
+import {CameraManager} from "./CameraManager.ts";
 
 
 
 const createScene = async (canvas: HTMLCanvasElement | null) => {
     const engine = new Engine(canvas);
     const scene = new Scene(engine);
-    new CameraManager(canvas, scene);
+    const cameraManager = new CameraManager(canvas, scene);
     const spotLight = new SpotLight(
         "spotLight",
         new Vector3(-1.673872709274292, 18.254297256469727, -14.205820083618164),
@@ -77,11 +77,11 @@ const createScene = async (canvas: HTMLCanvasElement | null) => {
     const ant2 = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_lice.png",2, [ability_strafe,ability_tristrike]);
     const ant3 = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_lice.png",2, [ability_strafe,ability_tristrike]);
 
-    const deckManager1 = CreateDeckMesh1(scene);
+    const deckManager = CreateDeckMesh1(scene, cameraManager);
 
     const squirrelDeckManager = CreateDeckMesh2(scene);
 
-    deckManager1.initDeck([ant, stoat,ant2, ant3]);
+    deckManager.initDeck([ant, stoat,ant2, ant3]);
     // deckManager1.updateDeck(20);
     squirrelDeckManager.initSquirrelDeck(15);
 

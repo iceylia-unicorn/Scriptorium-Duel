@@ -14,6 +14,7 @@ import type {CardCost, Sigil} from "./Card-types.ts";
 // 初始印记对应的位置。
 const addedPosition = [[-1.23, 1.6], [-1.23, 0.3]];
 const sigilWidth = 1.38;
+let cardWidth = 4, cardHeight = 6, cardDeep = 0.05; // card size
 
 
 export class Card {
@@ -22,10 +23,14 @@ export class Card {
     cardAttack: Mesh;
     cardHP: Mesh;
     // cardCost: Mesh;
-    cardMask: Mesh;
-
+    //最前面的模板，触发点击事件
+    topMask=MeshBuilder.CreatePlane("cardMask", {
+        width: cardWidth,
+        height: cardHeight
+    });
     static zIndex1 = -0.051;
     static zIndex2 = -0.052;
+    static topZindex = -0.053;
 
 
     private nameValue: string;
@@ -96,7 +101,6 @@ export class Card {
         this.isVisible = true;
 
         //Create base card mesh
-        let cardWidth = 4, cardHeight = 6, cardDeep = 0.05; // card size
         // let a = MeshBuilder.CreatePlane()
         this.box = MeshBuilder.CreateBox(name, {
             width: cardWidth,  // 宽度
@@ -118,21 +122,18 @@ export class Card {
             height: cardHeight / 5
         }, scene);
 
-        this.cardMask = MeshBuilder.CreatePlane("cardMask", {
-            width: cardWidth,
-            height: cardHeight
-        });
+
 
         // Card components position
         this.cardName.parent = this.box;
         this.cardAttack.parent = this.box;
         this.cardHP.parent = this.box;
-        this.cardMask.parent = this.box;
+        this.topMask.parent = this.box;
 
         this.cardName.position.z = -cardDeep / 2 - 0.001;
         this.cardAttack.position.z = -cardDeep / 2 - 0.001;
         this.cardHP.position.z = -cardDeep / 2 - 0.001;
-        this.cardMask.position.z = -cardDeep / 2 - 0.002;
+        this.topMask.position.z = Card.topZindex;
 
         this.cardName.position.y = 2.4;
 
@@ -216,7 +217,7 @@ export class Card {
         this.cardName.material = cardNameMat;
         this.cardAttack.material = cardAttackMat;
         this.cardHP.material = cardHPMat;
-        this.cardMask.material = cardMaskMat;
+        this.topMask.material = cardMaskMat;
 
 
         // 设置立绘
