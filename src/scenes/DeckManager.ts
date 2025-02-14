@@ -84,7 +84,7 @@ export class TableManager {
             clawMark.position = position;
             // clawMark.rotation.x = Math.PI / 2; // Rotate to lie flat on the ground
             clawMark.material = clawMaterial;
-            if(index >3 ){
+            if (index > 3) {
                 clawMark.rotation.z = Math.PI;
             }
         });
@@ -116,7 +116,7 @@ export class DeckManager {
         wasEdge: false
     };
     static handCardsCount = 0;
-    static currentCard: Card|null = null;
+    static currentCard: Card | null = null;
     // 用于跟踪已放置卡牌的位置
     static placedClawMarks: Set<number> = new Set();
 
@@ -377,6 +377,7 @@ export class DeckManager {
         );
 
     }
+
     private initClawMarks() {
         const clawMarks = this._scene.getTransformNodeByName("clawTransformNode")?.getChildren();
         if (clawMarks) {
@@ -415,6 +416,7 @@ export class DeckManager {
             });
         }
     }
+
     enablePlacementOnClawMarks(card: Card) {
         DeckManager.currentCard = card;
     }

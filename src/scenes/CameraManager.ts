@@ -1,4 +1,5 @@
 import {Camera, Scene, UniversalCamera, Vector3} from "@babylonjs/core";
+import {DeckManager} from "./DeckManager.ts";
 
 enum VIEWSTATUS {
     // 初始战斗视角
@@ -43,6 +44,15 @@ export class CameraManager {
                 return
             }
             const key = event.key.toLowerCase();
+            // 当处于卡牌放置时，按esc退出。
+            if (key === 'escape' || key === "s") {
+                if (DeckManager.currentCard && this.viewStatus === VIEWSTATUS.battleOverlook) {
+                    DeckManager.currentCard = null;
+                    this.switchCamera(this.battleDefaultCamera);
+                    this.viewStatus = VIEWSTATUS.default;
+                    return;
+                }
+            }
             switch (key) {
                 case 'w':
                     if(this.viewStatus === VIEWSTATUS.default){
@@ -111,6 +121,7 @@ export class CameraManager {
                 break;
         }
     }
+
     public switchToBattleOverlook() {
         this.switchCamera(this.overlookCamera);
         this.viewStatus = VIEWSTATUS.battleOverlook;
