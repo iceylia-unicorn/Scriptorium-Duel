@@ -103,6 +103,7 @@ export class DeckManager {
     private _deckRotation = new Vector3(1.1502502007897775, 3.141592653589793, 3.141592653589793)
 
     static handTransformNode: TransformNode;
+    static cardForPlaceTransformNode: TransformNode;//准备放置的位置。
     // 抽牌堆（未使用的卡）
     drawPile: Card[] = [];
     // 弃牌堆（已使用/死亡的卡）
@@ -119,6 +120,8 @@ export class DeckManager {
     static currentCard: Card | null = null;
     // 用于跟踪已放置卡牌的位置
     static placedClawMarks: Set<number> = new Set();
+    static cardPlaceActionState = true;
+    // static cardHoverOnAction =
 
 
     // 初始化牌堆
@@ -151,6 +154,9 @@ export class DeckManager {
             DeckManager.handTransformNode = new TransformNode("handTransformNode");
             DeckManager.handTransformNode.position = new Vector3(-0.2449856400489807, 8.417621612548828, -15.809992790222168);
             DeckManager.handTransformNode.rotation = new Vector3(1.1294828805629191, 5.147569593710105e-18, 5.698802770519521e-18);
+            DeckManager.cardForPlaceTransformNode = new TransformNode("cardForPlaceTransformNode");
+            DeckManager.cardForPlaceTransformNode.position = new Vector3(-9.105466842651367, 9.648472785949707, -4.0555806159973145);
+            DeckManager.cardForPlaceTransformNode.rotation = new Vector3(1.3496281379015116, -3.141591216217944, -3.0547464333073426);
         }
         this.initClawMarks();
     }
@@ -335,8 +341,11 @@ export class DeckManager {
             new ExecuteCodeAction(
                 ActionManager.OnLeftPickTrigger,
                 () => {
-                    DeckManager.cameraManager?.switchToBattleOverlook();
-                    this.enablePlacementOnClawMarks(card);
+                    if (DeckManager.cardPlaceActionState) {
+                        DeckManager.cameraManager?.switchToBattleOverlook();
+                        this.enablePlacementOnClawMarks(card);
+
+                    }
 
                 }
             )
@@ -346,14 +355,17 @@ export class DeckManager {
             new ExecuteCodeAction(
                 ActionManager.OnPointerOverTrigger,
                 () => {
-                    const index = DeckManager.handCards.indexOf(card);
-                    DeckManager.hoveredIndex = index;
-                    // 如果是边缘卡牌，记录状态
-                    if (isEdgeCard(index)) {
-                        DeckManager.lastHoveredState.index = index;
-                        DeckManager.lastHoveredState.wasEdge = true;
+                    if (DeckManager.cardPlaceActionState) {
+                        const index = DeckManager.handCards.indexOf(card);
+                        DeckManager.hoveredIndex = index;
+                        // 如果是边缘卡牌，记录状态
+                        if (isEdgeCard(index)) {
+                            DeckManager.lastHoveredState.index = index;
+                            DeckManager.lastHoveredState.wasEdge = true;
+                        }
+                        this.updateHandLayout();
                     }
-                    this.updateHandLayout();
+
                 }
             )
         );
@@ -363,15 +375,17 @@ export class DeckManager {
             new ExecuteCodeAction(
                 ActionManager.OnPointerOutTrigger,
                 () => {
-                    const index = DeckManager.handCards.indexOf(card);
+                    if (DeckManager.cardPlaceActionState) {
+                        const index = DeckManager.handCards.indexOf(card);
 
-                    DeckManager.hoveredIndex = -1;
-                    // 如果不是边缘卡牌，清除最后的悬浮状态
-                    if (!isEdgeCard(index)) {
-                        DeckManager.lastHoveredState.index = -1;
-                        DeckManager.lastHoveredState.wasEdge = false;
+                        DeckManager.hoveredIndex = -1;
+                        // 如果不是边缘卡牌，清除最后的悬浮状态
+                        if (!isEdgeCard(index)) {
+                            DeckManager.lastHoveredState.index = -1;
+                            DeckManager.lastHoveredState.wasEdge = false;
+                        }
+                        this.updateHandLayout();
                     }
-                    this.updateHandLayout();
                 }
             )
         );
@@ -408,6 +422,8 @@ export class DeckManager {
                                     // 更新手牌布局
                                     this.updateHandLayout();
                                     DeckManager.currentCard = null; // 重置当前卡牌
+                                    DeckManager.cardPlaceActionState = true; // 开启动画
+
                                 }
                             }
                         )
@@ -417,8 +433,21 @@ export class DeckManager {
         }
     }
 
+    //等待放置
     enablePlacementOnClawMarks(card: Card) {
         DeckManager.currentCard = card;
+        DeckManager.cardPlaceActionState = false;
+        card.show(DeckManager.cardForPlaceTransformNode, Vector3.Zero(), Vector3.Zero());
+
+    }
+
+    //取消放置
+    static cancelPlacementOnClawMarks() {
+        DeckManager.currentCard?.show(DeckManager.handTransformNode);
+        DeckManager.currentCard = null;
+        DeckManager.cardPlaceActionState = true;
+
+        // this.updateHandLayout();
     }
 }
 

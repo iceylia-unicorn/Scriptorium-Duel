@@ -47,7 +47,7 @@ export class CameraManager {
             // 当处于卡牌放置时，按esc退出。
             if (key === 'escape' || key === "s") {
                 if (DeckManager.currentCard && this.viewStatus === VIEWSTATUS.battleOverlook) {
-                    DeckManager.currentCard = null;
+                    DeckManager.cancelPlacementOnClawMarks();
                     this.switchCamera(this.battleDefaultCamera);
                     this.viewStatus = VIEWSTATUS.default;
                     return;
