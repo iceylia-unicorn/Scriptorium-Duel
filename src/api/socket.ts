@@ -34,7 +34,7 @@ socket.on('duelStart', (data) => {
     // startGame();
 });
 
-// 监听对手事件
-socket.on('duelEvent', (event) => {
-    // handleOpponentAction(event);
-});
+// // 监听对手事件
+// socket.on('duelEvent', (event) => {
+//     // handleOpponentAction(event);
+// });
