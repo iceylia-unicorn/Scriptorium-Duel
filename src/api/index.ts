@@ -1,4 +1,5 @@
 
-let staticUrl = import.meta.env.STATIC_URL;
-let socketUrl = import.meta.env.SOCKET_URL;
+let staticUrl = import.meta.env.VITE_STATIC_URL;
+let socketUrl = import.meta.env.VITE_SOCKET_URL;
+console.log(staticUrl, socketUrl);
 export { staticUrl, socketUrl }
