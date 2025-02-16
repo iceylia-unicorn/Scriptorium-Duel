@@ -91,7 +91,6 @@ const createScene = async (canvas: HTMLCanvasElement | null) => {
         await import('@babylonjs/inspector');
         await scene.debugLayer.show();
     }
-
     engine.runRenderLoop(() => {
         scene.render();
     });

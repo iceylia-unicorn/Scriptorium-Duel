@@ -3,22 +3,26 @@
 
 import {onMounted, ref} from "vue";
 import  {createScene} from "../scenes/MyFirstScene.ts"
+import {createDuelRoom, joinDuelRoom} from "../api/socket.ts";
 
-// const BJS_CANVAS_WIDTH = 800;
-// const BJS_CANVAS_HEIGHT = 600;
-// import { ref, onMounted } from "@vue/runtime-core";
 const bjsCanvas = ref<HTMLCanvasElement | null>(null);
-
-
+let roomId = ref<string>("");
 onMounted(async () => {
   if (bjsCanvas.value) {
     await createScene(bjsCanvas.value);
   }
 });
 
+
 </script>
 
 <template>
+  <div>
+    <input type="text" v-model="roomId"/>
+    <button @click="createDuelRoom">创建</button>
+    <button @click="joinDuelRoom(roomId)">提交</button>
+
+  </div>
   <div id="canvasZone">
 
     <canvas ref="bjsCanvas" width="1080" height="607.5" />

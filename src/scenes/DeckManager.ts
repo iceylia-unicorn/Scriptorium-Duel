@@ -446,8 +446,6 @@ export class DeckManager {
         DeckManager.currentCard?.show(DeckManager.handTransformNode);
         DeckManager.currentCard = null;
         DeckManager.cardPlaceActionState = true;
-
-        // this.updateHandLayout();
     }
 }
 

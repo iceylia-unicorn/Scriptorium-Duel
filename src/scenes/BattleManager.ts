@@ -1,69 +1,127 @@
 // import type {TableManager} from "./DeckManager.ts";
 
-import type {DeckManager} from "./DeckManager.ts";
+// BattleManager.ts 扩展
+import type { DeckManager } from "./DeckManager.ts";
+import { Card } from "./Card.ts";
 
 export class BattleManager {
-    private currentPhase: 'draw' | 'play' | 'enemyPlay' | 'damage' | 'enemyDamage' = 'draw';
-    private deckManager: DeckManager;
+    // 现有属性...
+    // private enemyCards: Card[] = []; // 敌方卡牌数组
+    private playerHealth = 5;        // 玩家生命值
+    private enemyHealth = 5;         // 敌人生命值
+    private currentRound = 1;        // 当前回合数
+    public  currentPhase;
 
-    constructor(deckManager: DeckManager) {
-        this.deckManager = deckManager;
+    // // 添加敌人卡牌初始化方法（需由后端调用）
+    // public initEnemyCards(cardsData: any[]) {
+    //     this.enemyCards = cardsData.map(data =>
+    //         Card.Create(this.deckManager.scene, data.presetKey)
+    //     );
+    //     // TODO: 将敌方卡牌放置到战场
+    // }
+
+    // 扩展阶段方法
+    private async playPhase() {
+        console.log("进入出牌阶段");
+        // 玩家出牌逻辑
+        await this.waitForPlayerActions();
+        this.currentPhase = 'damage';
+        this.nextPhase();
     }
 
-    // 进入下一阶段
-    nextPhase() {
-        switch (this.currentPhase) {
-            case 'draw':
-                this.drawPhase();
-                break;
-            case 'play':
-                this.playPhase();
-                break;
-            case 'enemyPlay':
-                this.enemyPlayPhase();
-                break;
-            case 'damage':
-                this.damagePhase();
-                break;
-            case 'enemyDamage':
-                this.enemyDamagePhase();
-                break;
+    private async enemyPlayPhase() {
+        console.log("进入对方出牌阶段");
+        // 从后端获取敌方行动
+        const enemyActions = await this.fetchEnemyActions();
+        await this.executeEnemyActions(enemyActions);
+        this.currentPhase = 'enemyDamage';
+        this.nextPhase();
+    }
+
+    // 新增战斗核心方法
+    private async waitForPlayerActions(): Promise<void> {
+        return new Promise((resolve) => {
+            // 监听卡牌放置事件
+            const handler = () => {
+                DeckManager.placedClawMarks.clear();
+                resolve();
+            };
+            DeckManager.cardForPlaceTransformNode.onDisposeObservable.addOnce(handler);
+        });
+    }
+
+    private async fetchEnemyActions(): Promise<any> {
+        // TODO: 对接后端获取敌人行动
+        return new Promise(resolve => setTimeout(() =>
+            resolve({ actions: [] }), 1000
+        ));
+    }
+
+    private async executeEnemyActions(actions: any): Promise<void> {
+        // 执行敌人行动（示例）
+        actions.forEach(action => {
+            const enemyCard = this.enemyCards[action.cardIndex];
+            // TODO: 执行攻击/技能逻辑
+        });
+    }
+
+    // 扩展伤害结算
+    private damagePhase() {
+        console.log("进入伤害结算阶段");
+        this.resolveCombat();
+        this.currentPhase = 'enemyPlay';
+        this.nextPhase();
+    }
+
+    private resolveCombat() {
+        // 示例：简单伤害计算
+        const playerDamage = this.calculatePlayerDamage();
+        const enemyDamage = this.calculateEnemyDamage();
+
+        this.enemyHealth -= playerDamage;
+        this.playerHealth -= enemyDamage;
+
+        console.log(`本轮伤害：玩家造成 ${playerDamage}，敌方造成 ${enemyDamage}`);
+        this.checkGameOver();
+    }
+
+    private calculatePlayerDamage(): number {
+        // TODO: 实现实际伤害计算
+        return DeckManager.placedClawMarks.size;
+    }
+
+    private calculateEnemyDamage(): number {
+        // TODO: 实现实际伤害计算
+        return this.enemyCards.length;
+    }
+
+    private checkGameOver() {
+        if (this.playerHealth <= 0) {
+            console.log("游戏结束 - 玩家失败");
+            // TODO: 触发游戏结束流程
+        } else if (this.enemyHealth <= 0) {
+            console.log("游戏结束 - 玩家胜利");
+            // TODO: 触发胜利流程
         }
     }
 
-    // 抽卡阶段
-    private drawPhase() {
-        console.log("进入抽卡阶段");
-        this.deckManager.drawCardAnimation();
-        this.currentPhase = 'play';
-        // this.nextPhase();
+    // 新增回合控制
+    public startBattle() {
+        console.log(`第 ${this.currentRound} 回合开始`);
+        this.nextPhase();
     }
 
-    // 出牌阶段
-    private playPhase() {
-        console.log("进入出牌阶段");
-        // 在这里实现出牌逻辑
-        this.currentPhase = 'damage';
+    public endRound() {
+        this.currentRound++;
+        console.log(`第 ${this.currentRound} 回合开始`);
+        this.nextPhase();
     }
+}
 
-    // 对方出牌阶段
-    private enemyPlayPhase() {
-        console.log("进入对方出牌阶段");
-        // 在这里实现对方出牌逻辑
-        this.currentPhase = 'enemyDamage';
-    }
-
-    // 伤害结算阶段
-    private damagePhase() {
-        console.log("进入伤害结算阶段");
-        // 在这里实现伤害结算逻辑
-        this.currentPhase = 'enemyPlay';
-    }
-
-    // 对方伤害结算阶段
-    private enemyDamagePhase() {
-        console.log("进入对方伤害结算阶段");
-        // 在这里实现对方伤害结算逻辑
-        this.currentPhase = 'draw';
-    }
+// 类型声明扩展（新建 BattleTypes.ts）
+export interface BattleAction {
+    type: 'ATTACK' | 'ABILITY';
+    cardIndex: number;
+    targetIndex?: number;
+    abilityType?: string;
 }
