@@ -3,7 +3,8 @@ import {socketUrl} from "./index.ts";
 // client.ts
 const socket = io(socketUrl, {
     withCredentials: false,
-    transports: ['websocket','polling'] // 与服务器一致
+    transports: ['websocket','polling'], // 与服务器一致
+    path: "/koa/socket.io"
 });
 
 
