@@ -3,20 +3,20 @@ import type {Card} from "./Card.ts";
 //卡牌种族
 
 export enum CardTribe {
-    //无种族
-    NULL = 'NULL',
+    //卡牌种族
+    NULL = '无',
     //松鼠
-    SQUIRER = 'SQUIRER',
+    SQUIRER = '松鼠',
     //鸟类
-    AVIAN = 'AVIAN',
+    AVIAN = '鸟',
     //兽类
-    CANINE = 'canine',
+    CANINE = '兽',
     //鹿
-    HOOVED = 'HOOVED',
+    HOOVED = '鹿',
     //昆虫
-    INSECT = 'INSECT',
+    INSECT = '昆虫',
     //爬行类
-    REPTILE = 'REPTILE',
+    REPTILE = '爬行',
 }
 //卡牌稀有度
 export enum CardRarity {

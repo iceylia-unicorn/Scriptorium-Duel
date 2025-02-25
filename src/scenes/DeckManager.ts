@@ -231,6 +231,7 @@ export class DeckManager {
     // 抽牌动画
     drawCardAnimation() {
 
+
         if (this._cardInstances.length === 0) return;
 
         const topCard = this._cardInstances[this._cardInstances.length - 1];

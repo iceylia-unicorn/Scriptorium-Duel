@@ -2,10 +2,15 @@ import {type CardData, CardRarity, CardTribe} from "./Card-types.ts";
 import {staticUrl} from "../api";
 import type {Card} from "./Card.ts";
 
-//
 export enum CARD_NAMES {
     //松鼠
     Squirrel = 'SQUIRREL',
+    Wolf = "WOLF", //狼
+    // River_Snapper = "RIVER_SNAPPER",
+    Bat = "BAT",
+    Bullfrog = "BULLFROG", //牛蛙
+
+
 }
 
 export const PRESET_CARDS: { [key: string]: CardData } = {
@@ -25,6 +30,42 @@ export const PRESET_CARDS: { [key: string]: CardData } = {
         cost: "1",
         portraitUrl: `${staticUrl}images/cards/portraits/talkingCards/stoat_character_body.png`,
         tribe: CardTribe.NULL,
+        rarity: CardRarity.COMMON
+    },
+    WOLF: {
+        name: "狼",
+        attack: "3",
+        hp: "1",
+        cost: "2",
+        portraitUrl: `${staticUrl}images/cards/portraits/portrait_wolf.png`,
+        tribe: CardTribe.CANINE,
+        rarity: CardRarity.COMMON
+    },
+    // RIVER_SNAPPER:{
+    //     name: "狼",
+    //     attack: "1",
+    //     hp: "6",
+    //     cost: "2",
+    //     portraitUrl: `${staticUrl}images/cards/portraits/wolf.png`,
+    //     tribe: CardTribe.REPTILE,
+    //     rarity: CardRarity.COMMON
+    // },
+    BAT:{
+        name: "蝙蝠",
+        attack: "2",
+        hp: "1",
+        cost: "2",
+        portraitUrl: `${staticUrl}images/cards/portraits/portrait_wolf.png`,
+        tribe: CardTribe.CANINE,
+        rarity: CardRarity.COMMON
+    },
+    BULLFROG:{
+        name: "牛蛙",
+        attack: "1",
+        hp: "2",
+        cost: "1",
+        portraitUrl: `${staticUrl}images/cards/portraits/portrait_wolf.png`,
+        tribe: CardTribe.REPTILE,
         rarity: CardRarity.COMMON
     }
 }

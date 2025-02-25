@@ -32,7 +32,7 @@ export class CameraManager {
         this.battleDefaultCamera.rotation = new Vector3(0.9265418204398328, -0.002379704337376702, 0);
         this.overlookCamera.target = new Vector3(-0.00110119057385674, 22.91462588299441, 2.961780354354939);
         this.overlookCamera.position = new Vector3(0.001789230271242559, 23.887523651123047, 3.192997932434082);
-        this.overlookCamera.rotation.z = Math.PI;
+        // this.overlookCamera.rotation.z = Math.PI;
         this.overlookCamera.rotation = new Vector3(1.3962634015954636, 3.141592653589793, 3.141592653589793);// (debugNode as BABYLON.FreeCamera)
         scene.activeCamera = this.battleDefaultCamera;
 
@@ -93,14 +93,11 @@ export class CameraManager {
                     break;
             }
         });
-
-        this.overlookCamera.attachControl(canvas, true);
     }
     // Function to switch cameras
     private switchCamera(camera: Camera){
         this._scene.activeCamera!.detachControl(this._canvas);
         this._scene.activeCamera = camera;
-        camera.attachControl(this._canvas, true);
     };
     private rotateCamera(camera: UniversalCamera, direction: string) {
         switch (direction) {
