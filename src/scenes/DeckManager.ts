@@ -298,7 +298,7 @@ export class DeckManager {
             card.box.rotation = new Vector3(0, 0, rotationZ);
 
             // 计算Z轴位置
-            let zPos = baseZ;
+            let zPos: number;
             let yPos = baseY;
 
             // 如果当前有悬浮卡牌或最后一次悬浮是边缘卡牌
