@@ -13,6 +13,7 @@ dist-ssr
 *.env
 *.local
 .env
+*.env.*
 *.secret
 
 # Editor directories and files

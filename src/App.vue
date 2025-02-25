@@ -4,6 +4,10 @@ import MainScene from "./components/MainScene.vue";
 </script>
 
 <template>
-  <MainScene></MainScene>
+  <div class="w-full text-white h-dvh bg-black">
+
+    <MainScene></MainScene>
+
+  </div>
 </template>
 
