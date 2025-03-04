@@ -1,13 +1,10 @@
 <script setup lang="ts">
-// import "api/socket.ts"
-import MainScene from "./components/MainScene.vue";
+import Home from "./components/Home.vue";
 </script>
 
 <template>
   <div class="w-full text-white h-dvh bg-black">
-
-    <MainScene></MainScene>
-
+  <Home></Home>
   </div>
 </template>
 

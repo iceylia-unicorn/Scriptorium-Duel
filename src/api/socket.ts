@@ -2,6 +2,9 @@ import {io, Socket} from 'socket.io-client';
 import {socketUrl} from "./index.ts";
 import type {CARD_NAMES} from "../scenes/Card-database.ts";
 import {gameState} from "../scenes/gameState.ts";
+import { EventEmitter } from 'events';
+import type {App} from "vue";
+const eventEmitter = new EventEmitter();
 // socket.ts
 let socketInstance: Socket | null = null;
 
@@ -11,57 +14,74 @@ export function getSocket() {
         socketInstance = io(socketUrl, {
             withCredentials: false,
             transports: ['websocket'],
-            path: "/koa/socket.io"
+            path: "/koa/socket.io",
+            reconnection: true,
+            reconnectionAttempts: 10,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            randomizationFactor: 0.5
         });
     }
     return socketInstance;
 }
-export function initializeSocket() {
-    const socket = getSocket();
-    // 监听游戏开始
-    socket.on('duelStart', (data) => {
-        console.log('对战开始！玩家列表:', data.players);
-        // startGame();
-    });
+export function initializeSocket():Promise<{event:string, data:string}> {
+    return new Promise((resolve) => {
+        const socket = getSocket();
+        // 监听游戏开始
+        socket.on('duelStart', (data) => {
+            gameState.players = data.players;
+            eventEmitter.emit('gameStarted');
+        });
 
-    // 监听对面发过来的卡组。
-    socket.on("syncInitDeck", (data) => {
-        console.log(data);
-    });
+        // 监听对面发过来的卡组。
+        socket.on("syncInitDeck", (data) => {
+            console.log(data);
+        });
+        socket.on("duelEnd", (data)=>{
+            console.log(data);
+        })
+        resolve({event:"initial", data:"success"});
+    })
 
-    // // 监听对手事件
-    // socket.on('duelEvent', (event) => {
-    //     // handleOpponentAction(event);
-    // });
+
 }
 
 // 创建房间
-export function createDuelRoom() {
-    const socket = getSocket();
-    socket.emit('createDuelRoom', (res: any) => {
-        if (res.roomId) {
-            gameState.roomid = res.roomId;
-
-            console.log(`房间创建成功，ID: ${gameState.roomid}`);
-            // waitForOpponent();
-        }
-    });
+export function createDuelRoom():Promise<{event:string, data:string}> {
+    return new Promise((resolve) => {
+        const socket = getSocket();
+        socket.emit('createDuelRoom', (res: any) => {
+            if (res.roomId) {
+                gameState.roomid = res.roomId;
+                resolve({event: 'createDuelRoom',data: res.roomId});
+            }
+        });
+    })
 }
 
 // 加入房间
-export function joinDuelRoom(roomId: string) {
-    const socket = getSocket();
-    socket.emit('joinDuelRoom', roomId, (res: any) => {
-        if (res.error) {
-            alert(res.error);
-        } else {
-            console.log(`成功加入房间，你是玩家${res.playerNumber}`);
-        }
-    });
+export function joinDuelRoom(roomId: string):Promise<{event:string, data:string}> {
+    return new Promise((resolve, reject) => {
+        const socket = getSocket();
+        socket.emit('joinDuelRoom', roomId, (res: any) => {
+            if (res.error) {
+                reject(res.error);
+            } else {
+                resolve({event: 'joinDuelRoom',data: res.playerNumber});
+            }
+        });
+
+    })
+
 }
 
 export const sendInitDeck = (cards: Array<{ name: CARD_NAMES, id: string }>) => {
     const socket = getSocket();
 
     return socket.emit('initDeck', cards);
+}
+
+
+export function provideEventEmitter(app:App) {
+    app.provide('eventEmitter', eventEmitter);
 }
