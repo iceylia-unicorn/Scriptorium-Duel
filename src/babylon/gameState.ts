@@ -3,6 +3,7 @@ import {v4 as uuid} from "uuid";
 import {reactive} from "vue";
 
 
+
 export const gameState = reactive({
     hp:100,
     selfInitDeck: [
@@ -19,7 +20,7 @@ export const gameState = reactive({
             id: uuid()
         }
     ],
-    roomid: null,
+    roomid: "",
     players: [],
 })
 

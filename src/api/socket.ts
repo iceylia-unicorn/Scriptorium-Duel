@@ -1,7 +1,7 @@
 import {io, Socket} from 'socket.io-client';
 import {socketUrl} from "./index.ts";
-import type {CARD_NAMES} from "../scenes/Card-database.ts";
-import {gameState} from "../scenes/gameState.ts";
+import type {CARD_NAMES} from "../babylon/Card-database.ts";
+import {gameState} from "../babylon/gameState.ts";
 import { EventEmitter } from 'events';
 import type {App} from "vue";
 const eventEmitter = new EventEmitter();
@@ -14,7 +14,7 @@ export function getSocket() {
         socketInstance = io(socketUrl, {
             withCredentials: false,
             transports: ['websocket'],
-            path: "/koa/socket.io",
+            // path: "/koa/socket.io",
             reconnection: true,
             reconnectionAttempts: 10,
             reconnectionDelay: 1000,

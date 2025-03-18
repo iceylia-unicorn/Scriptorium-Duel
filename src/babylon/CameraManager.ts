@@ -1,6 +1,6 @@
 import {Camera, Scene, UniversalCamera, Vector3} from "@babylonjs/core";
 import {DeckManager} from "./DeckManager.ts";
-
+import { globalBabylon } from "./globals"; // 导入全局状态
 enum VIEWSTATUS {
     // 初始战斗视角
     "default" = 0,
@@ -15,18 +15,31 @@ enum VIEWSTATUS {
 }
 
 export class CameraManager {
+    private static instance: CameraManager; // 启用单例模式。
     private battleDefaultCamera: UniversalCamera;
     private overlookCamera: UniversalCamera;
     private _scene: Scene;
-    private _canvas: HTMLCanvasElement | null;
+    private _canvas: HTMLCanvasElement;
     // private disabledKeys: Set<string>;
     private viewStatus: VIEWSTATUS = VIEWSTATUS.default;
     private readonly defaultTarget = new Vector3(-0.7421837071371951, 18.92943459100077, -18.71784432927812);
 
-    constructor(canvas: HTMLCanvasElement | null, scene: Scene) {
-        this._scene = scene;
-        this._canvas = canvas;
-        this.battleDefaultCamera = new UniversalCamera("battleDefaultCamera", new Vector3(-0.7407544520688198, 19.72898229374219, -19.318445146053843), scene);
+    // 单例模式获取唯一实例。
+    public static getInstance(): CameraManager {
+        if (!CameraManager.instance) {
+            // 确保已初始化
+            if (!globalBabylon.scene || !globalBabylon.canvas) {
+                throw new Error("CameraManager 必须在场景初始化后使用！");
+            }
+            CameraManager.instance = new CameraManager();
+        }
+        return CameraManager.instance;
+    }
+    private constructor() {
+        this._scene = globalBabylon.scene!;
+        this._canvas = globalBabylon.canvas!;
+
+        this.battleDefaultCamera = new UniversalCamera("battleDefaultCamera", new Vector3(-0.7407544520688198, 19.72898229374219, -19.318445146053843), this._scene);
         this.overlookCamera = new UniversalCamera("overlookCamera", new Vector3(-2.1197295966570405e-16, 30.95540428161621, 3.0498669147491455), this._scene);
         this.battleDefaultCamera.target = this.defaultTarget;
         this.battleDefaultCamera.rotation = new Vector3(0.9265418204398328, -0.002379704337376702, 0);
@@ -34,7 +47,7 @@ export class CameraManager {
         this.overlookCamera.position = new Vector3(0.001789230271242559, 23.887523651123047, 3.192997932434082);
         // this.overlookCamera.rotation.z = Math.PI;
         this.overlookCamera.rotation = new Vector3(1.3962634015954636, 3.141592653589793, 3.141592653589793);// (debugNode as BABYLON.FreeCamera)
-        scene.activeCamera = this.battleDefaultCamera;
+        this._scene.activeCamera = this.battleDefaultCamera;
 
 
 

@@ -30,11 +30,11 @@
 </template>
 
 <script setup lang="ts">
-// import {gameState} from "../../scenes/gameState.ts";
+// import {gameState} from "../../babylon/gameState.ts";
 import {inject, onMounted, onUnmounted, ref} from "vue";
 import {createDuelRoom, initializeSocket, joinDuelRoom} from "../../api/socket.ts";
 import message from '../../utils/message'
-import {gameState} from "../../scenes/gameState.ts";
+import {gameState} from "../../babylon/gameState.ts";
 import type {EventEmitter} from "events";
 import { useRouter } from "vue-router";
 

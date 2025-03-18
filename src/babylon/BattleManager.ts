@@ -1,3 +1,61 @@
+import {AssetContainer, LoadAssetContainerAsync} from "@babylonjs/core";
+import {globalBabylon} from "./globals.ts";
+
+export class BattleManager {
+    private static instance: BattleManager;//单例
+    public turnOverAnimation;
+    private isEnabled  = true; //是否启用
+    private bellContainer:AssetContainer;
+
+    // 单例模式获取唯一实例
+    public static async getInstance(): Promise<BattleManager> {
+        if (!BattleManager.instance) {
+            // 确保已初始化
+            if (!globalBabylon.scene || !globalBabylon.canvas) {
+                throw new Error("BattleManager 必须在场景初始化后使用！");
+            }
+            // 异步构造，先运行异步，再返回构造。
+            const bellContainer = await LoadAssetContainerAsync("models/bell.glb", globalBabylon.scene!);
+            BattleManager.instance = new BattleManager(bellContainer)
+        }
+        return BattleManager.instance;
+    }
+
+    private constructor(bellContainer: AssetContainer) {
+        this.bellContainer = bellContainer;
+        bellContainer.animationGroups[0].stop();
+        this.turnOverAnimation = bellContainer.animationGroups[0];
+        bellContainer.addAllToScene();
+    }
+    public enable(isEnable:boolean): void {
+        if(this.isEnabled === isEnable) return;
+        this.isEnabled  = isEnable;
+
+        if(isEnable){
+            //启用战斗场景
+            this.bellContainer.addAllToScene();
+        }
+        else{
+            this.bellContainer.removeAllFromScene();
+        }
+    }
+
+    //回合结束
+    turnOver() {
+        //播放动画
+
+
+        //更改状态
+    }
+
+    public playBellTurnOver(): void {
+        // this.turnOverAnimate = true;
+
+    }
+
+}
+
+
 // // import type {TableManager} from "./DeckManager.ts";
 //
 // // BattleManager.ts 扩展

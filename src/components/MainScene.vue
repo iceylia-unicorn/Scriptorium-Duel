@@ -1,16 +1,29 @@
 <script setup lang="ts">
+import {globalBabylon} from "../babylon/globals.ts"; // 初始化全局变量。
 
+import "@babylonjs/loaders/glTF";
+// import "@babylonjs/loaders";
 
 import {onMounted, ref} from "vue";
-// import  {createScene} from "../scenes/MyFirstScene.ts"
 import {sendInitDeck} from "../api/socket.ts";
-import {Color3, Engine, MeshBuilder, Scene, SpotLight, StandardMaterial, Vector3} from "@babylonjs/core";
-import {CameraManager} from "../scenes/CameraManager.ts";
-import {CreateDeckMesh1, CreateDeckMesh2, TableManager} from "../scenes/DeckManager.ts";
-import {Card, StoatCard} from "../scenes/Card.ts";
+import {
+  Color3,
+  Engine,
+  MeshBuilder,
+  Scene,
+  SpotLight,
+  StandardMaterial,
+  Vector3
+} from "@babylonjs/core";
+
+import {CameraManager} from "../babylon/CameraManager.ts";
+import {CreateDeckMesh1, CreateDeckMesh2, TableManager} from "../babylon/DeckManager.ts";
+import {Card, StoatCard} from "../babylon/Card.ts";
 import {staticUrl} from "../api";
-import {ability_strafe, ability_tristrike} from "../scenes/Card-database.ts";
-import {gameState} from "../scenes/gameState.ts"
+import {ability_strafe, ability_tristrike} from "../babylon/Card-database.ts";
+import {gameState} from "../babylon/gameState.ts"
+import {BattleManager} from "../babylon/BattleManager.ts";
+
 
 const bjsCanvas = ref<HTMLCanvasElement | null>(null);
 
@@ -19,7 +32,10 @@ onMounted(async () => {
     const createScene = async (canvas: HTMLCanvasElement | null) => {
       const engine = new Engine(canvas);
       const scene = new Scene(engine);
-      const cameraManager = new CameraManager(canvas, scene);
+      // 保存到全局状态
+      globalBabylon.engine = engine;
+      globalBabylon.scene = scene;
+      const cameraManager = CameraManager.getInstance();
       const spotLight = new SpotLight(
           "spotLight",
           new Vector3(-1.673872709274292, 18.254297256469727, -14.205820083618164),
@@ -49,10 +65,9 @@ onMounted(async () => {
       stoat.box.position.x = 5;
 
       stoat.show();
-      // stoat.changeName("长老白鼬");
-      // stoat.startTalkAnimate();
 
-
+      const battleManger =  await BattleManager.getInstance();
+      battleManger.enable(false);
       const ant = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_lice.png", 2, [ability_strafe, ability_tristrike]);
       ant.box.position = new Vector3(1.8832770407085523e-16, -4.578444004058838, 1.407560110092163);// (debugNode as BABYLON.Mesh)
       ant.box.rotation = new Vector3(1.1502502007897775, 3.141592653589793, 3.141592653589793);// (debugNode as BABYLON.Mesh)
@@ -79,7 +94,8 @@ onMounted(async () => {
       });
 
     }
-    await createScene(bjsCanvas.value);
+    globalBabylon.canvas = bjsCanvas.value;
+    await createScene(globalBabylon.canvas);
   }
 });
 
@@ -87,8 +103,8 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="flex-items-center m-10 p-3 bg-[#141A30] rounded-2xl">
-      <canvas class="outline-none" ref="bjsCanvas" width="1080" height="607.5"/>
-      <button @click="sendInitDeck(gameState.selfInitDeck)">发送卡组</button>
-    </div>
+  <div class="flex-items-center m-10 p-3 bg-[#141A30] rounded-2xl">
+    <canvas class="outline-none" ref="bjsCanvas" width="1080" height="607.5"/>
+<!--    <button @click="sendInitDeck(gameState.selfInitDeck)">发送卡组</button>-->
+  </div>
 </template>
