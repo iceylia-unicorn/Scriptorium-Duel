@@ -4,7 +4,7 @@ import {globalBabylon} from "../babylon/globals.ts"; // 初始化全局变量。
 import "@babylonjs/loaders/glTF";
 // import "@babylonjs/loaders";
 
-import {onMounted, ref} from "vue";
+import {onBeforeUnmount, onMounted, ref} from "vue";
 import {sendInitDeck} from "../api/socket.ts";
 import {
   Color3,
@@ -17,16 +17,17 @@ import {
 } from "@babylonjs/core";
 
 import {CameraManager} from "../babylon/CameraManager.ts";
-import {CreateDeckMesh1, CreateDeckMesh2, TableManager} from "../babylon/DeckManager.ts";
+import {CreateDeckMesh1, CreateDeckMesh2} from "../babylon/DeckManager.ts";
 import {Card, StoatCard} from "../babylon/Card.ts";
 import {staticUrl} from "../api";
 import {ability_strafe, ability_tristrike} from "../babylon/Card-database.ts";
 import {gameState} from "../babylon/gameState.ts"
 import {BattleManager} from "../babylon/BattleManager.ts";
+import {TableManager} from "../babylon/TableManager.ts";
 
 
 const bjsCanvas = ref<HTMLCanvasElement | null>(null);
-
+console.log(3);
 onMounted(async () => {
   if (bjsCanvas.value) {
     const createScene = async (canvas: HTMLCanvasElement | null) => {
@@ -55,7 +56,8 @@ onMounted(async () => {
       //set render priority, id 0 means render 1st.
       skybox.renderingGroupId = 0;
 
-      new TableManager(scene);
+      TableManager.getInstance();
+
       const deckManager = CreateDeckMesh1(scene, cameraManager);
 
       const squirrelDeckManager = CreateDeckMesh2(scene);
@@ -68,6 +70,7 @@ onMounted(async () => {
 
       const battleManger =  await BattleManager.getInstance();
       battleManger.enable(false);
+
       const ant = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_lice.png", 2, [ability_strafe, ability_tristrike]);
       ant.box.position = new Vector3(1.8832770407085523e-16, -4.578444004058838, 1.407560110092163);// (debugNode as BABYLON.Mesh)
       ant.box.rotation = new Vector3(1.1502502007897775, 3.141592653589793, 3.141592653589793);// (debugNode as BABYLON.Mesh)
@@ -98,7 +101,17 @@ onMounted(async () => {
     await createScene(globalBabylon.canvas);
   }
 });
-
+// 关键：在组件卸载前清理资源
+onBeforeUnmount(() => {
+  if (globalBabylon.scene) {
+    globalBabylon.scene.dispose();
+    globalBabylon.scene = null;
+  }
+  if (globalBabylon.engine) {
+    globalBabylon.engine.dispose();
+    globalBabylon.engine = null;
+  }
+});
 
 </script>
 

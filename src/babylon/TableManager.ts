@@ -1,0 +1,115 @@
+import {
+    Mesh,
+    MeshBuilder,
+    PBRMaterial,
+    type Scene,
+    StandardMaterial,
+    Texture,
+    TransformNode,
+    Vector3
+} from "@babylonjs/core";
+import {globalBabylon} from "./globals.ts";
+import {staticUrl} from "../api";
+
+export class TableManager {
+    private static instance:TableManager;
+
+    private readonly table: Mesh;
+    private readonly _scene: Scene;
+    public clawTransformNode: TransformNode;
+    private isBattleFiledEnable: boolean = true;
+    static readonly zlevel1 = -0.51;
+    // create instance under singleton pattern.
+    public static getInstance(): TableManager {
+        if (!TableManager.instance) {
+            // create instance after babylon init.
+            if (!globalBabylon.scene) {
+                throw new Error("TableManager 必须在场景初始化后使用！");
+            }
+            TableManager.instance = new TableManager();
+        }
+        return TableManager.instance;
+    }
+    constructor() {
+        this._scene = globalBabylon.scene!;
+        this.table = this.createTableMesh();
+        this.clawTransformNode = this.createBattlefield();
+        this.clawTransformNode.parent = this.table;
+        // this.clawTransformNode.position.y = -4.87;
+        this.clawTransformNode.position.z = TableManager.zlevel1;
+        this.setBattleFiledEnabled(false);
+    }
+
+    private createTableMesh() {
+        const table = MeshBuilder.CreateBox("table", {
+            width: 40,
+            height: 40,
+        })
+        const pbrMaterial = new PBRMaterial("pbrTableMaterial", this._scene);
+        pbrMaterial.albedoTexture = new Texture(staticUrl + "images/models/table/Poliigon_WoodVeneerOak_7760_BaseColor.jpg", this._scene); // 漫反射纹理
+        pbrMaterial.metallicTexture = new Texture(staticUrl + "images/models/table/Poliigon_WoodVeneerOak_7760_Metallic.jpg")
+        table.material = pbrMaterial;
+        table.position = new Vector3(1.540871118621494e-16, -4.0289435386657715, -1.2582167387008667);// (debugNode as BABYLON.Mesh)
+        table.rotation = new Vector3(1.1649784981529603, 3.141592653589793, 3.141592653589793);// (debugNode as BABYLON.Mesh)
+        return table;
+    }
+
+    // show or hide battlefield
+    public setBattleFiledEnabled(enable: boolean) {
+        if(enable === this.isBattleFiledEnable) return; //if no change, return.
+        if(enable){ //choose to show
+            this.clawTransformNode.setEnabled(true);
+            this.isBattleFiledEnable = true;
+        }
+        else{
+            this.clawTransformNode.setEnabled(false);
+            this.isBattleFiledEnable = false;
+        }
+    }
+    // battlefield init
+    private createBattlefield() {
+        // Define the card width and height
+        const cardWidth = 4;
+        const cardHeight = 6;
+
+        // Define the spacing between claw marks
+        const spacing = 0.8;
+
+        // Create an array to hold the positions of the 8 claw marks
+        const positions = [
+            // Opponent's claw marks
+            new Vector3(-1.5 * (cardWidth + spacing), -0.5 * (cardHeight + spacing), 0),
+            new Vector3(-0.5 * (cardWidth + spacing), -0.5 * (cardHeight + spacing), 0),
+            new Vector3(0.5 * (cardWidth + spacing), -0.5 * (cardHeight + spacing), 0),
+            new Vector3(1.5 * (cardWidth + spacing), -0.5 * (cardHeight + spacing), 0),
+            // Player's claw marks
+            new Vector3(-1.5 * (cardWidth + spacing), 0.5 * (cardHeight + spacing), 0),
+            new Vector3(-0.5 * (cardWidth + spacing), 0.5 * (cardHeight + spacing), 0),
+            new Vector3(0.5 * (cardWidth + spacing), 0.5 * (cardHeight + spacing), 0),
+            new Vector3(1.5 * (cardWidth + spacing), 0.5 * (cardHeight + spacing), 0),
+        ];
+
+        // Load the texture
+        const clawTexture = new Texture(staticUrl + "images/cards/misc/card_slot_heightmap.png", this._scene);
+
+        // Create a material and apply the texture
+        const clawMaterial = new StandardMaterial("clawMaterial", this._scene);
+        clawMaterial.diffuseTexture = clawTexture;
+        clawMaterial.opacityTexture = clawTexture; // Assuming the texture has transparency
+
+        // Create a transform node to control all claw marks
+        const clawTransformNode = new TransformNode("clawTransformNode", this._scene);
+
+        // Create claw mark planes and parent them to the transform node
+        positions.forEach((position, index) => {
+            const clawMark = MeshBuilder.CreatePlane(`clawMark${index}`, {height: 6, width: 4}, this._scene);
+            clawMark.parent = clawTransformNode; // Parent to the transform node
+            clawMark.position = position;
+            clawMark.material = clawMaterial;
+            if (index > 3) {
+                clawMark.rotation.z = Math.PI;
+            }
+        });
+        return clawTransformNode;
+    }
+}
