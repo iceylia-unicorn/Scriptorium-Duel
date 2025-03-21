@@ -1,8 +1,8 @@
-import { defineConfig, presetUno } from 'unocss'
+import { defineConfig, presetWind3 } from 'unocss'
 import presetIcons from '@unocss/preset-icons'
 export default defineConfig({
     presets: [
-        presetUno(), // 默认预设
+        presetWind3(), // 默认预设
         presetIcons({
             scale: 1.2,
             warn: true
