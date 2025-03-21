@@ -11,15 +11,19 @@ import {
 import {staticUrl} from "../api";
 import {Card} from "./Card.ts";
 import {CARD_NAMES} from "./Card-database.ts";
-import type {CameraManager} from "./CameraManager.ts";
-
-
+import {CameraManager} from "./CameraManager.ts";
+import {globalBabylon} from "./globals.ts";
 
 
 // 牌堆管理器类
 export class DeckManager {
     private readonly _scene: Scene;
     private readonly _baseCardMesh: Mesh; // 基础卡牌模型
+
+    private static creatureInstance: DeckManager; //singleton pattern creature instance
+    private static squirrelInstance: DeckManager; //squirrel instance
+
+
     static cameraManager: CameraManager | undefined;
     private _cardInstances: InstancedMesh[] = []; // 卡牌实例数组
     private _deckPosition: Vector3; // 牌堆位置
@@ -45,9 +49,33 @@ export class DeckManager {
     // 用于跟踪已放置卡牌的位置
     static placedClawMarks: Set<number> = new Set();
     static cardPlaceActionState = true;
+
     // static cardHoverOnAction =
+    public static getCreatureInstance(): DeckManager {
+        if (!DeckManager.creatureInstance) {
+            if (!globalBabylon.scene || !globalBabylon.canvas) {
+                throw new Error("DeckManager 必须在场景初始化后使用！");
+            }
+            DeckManager.creatureInstance = new DeckManager(
+                new Vector3(10.003179550170898, 3.130772113800049, -15.830220222473145),
+                staticUrl + "images/cards/base card/card_back.png");
 
+        }
+        return DeckManager.creatureInstance;
+    }
+    // static cardHoverOnAction =
+    public static getSquirrelInstance(): DeckManager {
+        if (!DeckManager.squirrelInstance) {
+            if (!globalBabylon.scene || !globalBabylon.canvas) {
+                throw new Error("DeckManager 必须在场景初始化后使用！");
+            }
+            DeckManager.squirrelInstance = new DeckManager(
+                new Vector3(15.272027969360352, 3.0910263061523438, -15.741351127624512),
+                staticUrl + "images/cards/base card/card_back_squirrel.png");
 
+        }
+        return DeckManager.squirrelInstance;
+    }
     // 初始化牌堆
     initDeck(initialCards: Card[]) {
         this.updateDeck(initialCards.length);
@@ -69,12 +97,12 @@ export class DeckManager {
         rotationRange: 0.23// 随机旋转幅度
     };
 
-    constructor(_deckPosition: Vector3, texturePath: string, scene: Scene, cameraManager?: CameraManager) {
-        this._scene = scene;
+    constructor(_deckPosition: Vector3, texturePath: string) {
+        this._scene = globalBabylon.scene!;
         this._deckPosition = _deckPosition;
         this._baseCardMesh = this._createBaseCard(texturePath);
         if (!DeckManager.handTransformNode) {
-            DeckManager.cameraManager = cameraManager;
+            DeckManager.cameraManager = CameraManager.getInstance();
             DeckManager.handTransformNode = new TransformNode("handTransformNode");
             DeckManager.handTransformNode.position = new Vector3(-0.2449856400489807, 8.417621612548828, -15.809992790222168);
             DeckManager.handTransformNode.rotation = new Vector3(1.1294828805629191, 5.147569593710105e-18, 5.698802770519521e-18);
@@ -110,7 +138,7 @@ export class DeckManager {
     }
 
     // 更新牌堆显示
-    updateDeck(count: number) {
+    private updateDeck(count: number) {
         // 调整实例数量
         while (this._cardInstances.length > count) {
             this._cardInstances.pop()?.dispose();
@@ -374,18 +402,4 @@ export class DeckManager {
         DeckManager.currentCard = null;
         DeckManager.cardPlaceActionState = true;
     }
-}
-
-export function CreateDeckMesh1(scene: Scene, cameraManager: CameraManager) {
-    return new DeckManager(
-        new Vector3(10.003179550170898, 3.130772113800049, -15.830220222473145),
-        staticUrl + "images/cards/base card/card_back.png",
-        scene, cameraManager);
-}
-
-export function CreateDeckMesh2(scene: Scene) {
-    return new DeckManager(
-        new Vector3(15.272027969360352, 3.0910263061523438, -15.741351127624512),
-        staticUrl + "images/cards/base card/card_back_squirrel.png",
-        scene);
 }

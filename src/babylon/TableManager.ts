@@ -55,9 +55,10 @@ export class TableManager {
     }
 
     // show or hide battlefield
-    public setBattleFiledEnabled(enable: boolean) {
-        if(enable === this.isBattleFiledEnable) return; //if no change, return.
-        if(enable){ //choose to show
+    public setBattleFiledEnabled(isEnable: boolean) {
+        if(isEnable === this.isBattleFiledEnable) return; //if no change, return.
+        this.isBattleFiledEnable = isEnable;
+        if(isEnable){ //choose to show
             this.clawTransformNode.setEnabled(true);
             this.isBattleFiledEnable = true;
         }
@@ -66,7 +67,7 @@ export class TableManager {
             this.isBattleFiledEnable = false;
         }
     }
-    // battlefield init
+    // battlefield mesh init
     private createBattlefield() {
         // Define the card width and height
         const cardWidth = 4;
