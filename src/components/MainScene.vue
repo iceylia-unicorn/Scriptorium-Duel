@@ -4,7 +4,7 @@ import {globalBabylon} from "../babylon/globals.ts"; // 初始化全局变量。
 import "@babylonjs/loaders/glTF";
 // import "@babylonjs/loaders";
 
-import {onBeforeUnmount, onMounted, ref} from "vue";
+import {onBeforeMount, onBeforeUnmount, onMounted, ref} from "vue";
 import {sendInitDeck} from "../api/socket.ts";
 import {
   Color3,
@@ -17,17 +17,31 @@ import {
 } from "@babylonjs/core";
 
 import {CameraManager} from "../babylon/CameraManager.ts";
-import {CreateDeckMesh1, CreateDeckMesh2} from "../babylon/DeckManager.ts";
+import {DeckManager} from "../babylon/DeckManager.ts";
 import {Card, StoatCard} from "../babylon/Card.ts";
 import {staticUrl} from "../api";
 import {ability_strafe, ability_tristrike} from "../babylon/Card-database.ts";
 import {gameState} from "../babylon/gameState.ts"
 import {BattleManager} from "../babylon/BattleManager.ts";
 import {TableManager} from "../babylon/TableManager.ts";
-
+import { initGUIMessageSystem, showGUIText, disposeMessageSystem } from "../babylon/GUIMessageSystem.ts";
 
 const bjsCanvas = ref<HTMLCanvasElement | null>(null);
-console.log(3);
+onBeforeMount(()=>{
+  if (globalBabylon.scene) {
+    globalBabylon.scene.dispose();
+    globalBabylon.scene = null;
+  }
+  if (globalBabylon.engine) {
+    globalBabylon.engine.dispose();
+    globalBabylon.engine = null;
+  }
+  // 新增：重置所有单例管理器
+  CameraManager.reset();
+  TableManager.reset();
+  // DeckManager.reset();  // 如果DeckManager也需要重置的话
+  // BattleManager.reset();// 如果BattleManager也需要重置的话
+})
 onMounted(async () => {
   if (bjsCanvas.value) {
     const createScene = async (canvas: HTMLCanvasElement | null) => {
@@ -36,7 +50,7 @@ onMounted(async () => {
       // 保存到全局状态
       globalBabylon.engine = engine;
       globalBabylon.scene = scene;
-      const cameraManager = CameraManager.getInstance();
+
       const spotLight = new SpotLight(
           "spotLight",
           new Vector3(-1.673872709274292, 18.254297256469727, -14.205820083618164),
@@ -46,7 +60,7 @@ onMounted(async () => {
           scene);
       spotLight.intensity = 100;
       spotLight.diffuse = new Color3(0.8156862745098039, 0.6313725490196078, 0.38823529411764707);
-      // create skybox, which is indeed a infinite distance box without reflection.
+      // create skybox, which is indeed an infinite distance box without reflection.
       const skybox = MeshBuilder.CreateBox("skyBox", {size: 150}, scene);
       const skyboxMaterial = new StandardMaterial("skybox", scene);
       skyboxMaterial.diffuseColor = Color3.Black();
@@ -57,19 +71,16 @@ onMounted(async () => {
       skybox.renderingGroupId = 0;
 
       TableManager.getInstance();
+      initGUIMessageSystem(scene);
 
-      const deckManager = CreateDeckMesh1(scene, cameraManager);
-
-      const squirrelDeckManager = CreateDeckMesh2(scene);
-
+      CameraManager.getInstance();
 
       const stoat = StoatCard.Create(scene);
       stoat.box.position.x = 5;
 
       stoat.show();
 
-      const battleManger =  await BattleManager.getInstance();
-      battleManger.enable(false);
+
 
       const ant = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_lice.png", 2, [ability_strafe, ability_tristrike]);
       ant.box.position = new Vector3(1.8832770407085523e-16, -4.578444004058838, 1.407560110092163);// (debugNode as BABYLON.Mesh)
@@ -83,10 +94,12 @@ onMounted(async () => {
       const ant3 = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_lice.png", 2, [ability_strafe, ability_tristrike]);
 
       sendInitDeck(gameState.selfInitDeck);
-
-      deckManager.initDeck([ant, stoat, ant2, ant3]);
-      // deckManager1.updateDeck(20);
-      squirrelDeckManager.initSquirrelDeck(15);
+      const creatureDeck = DeckManager.getCreatureInstance();
+      const squirrelDeck = DeckManager.getSquirrelInstance();
+      creatureDeck.initDeck([ant, stoat, ant2, ant3]);
+      squirrelDeck.initSquirrelDeck(15);
+      const battleManager = await BattleManager.getInstance();
+      showGUIText("敌人来袭");
 
       if (import.meta.env.MODE === 'development') {
         await import('@babylonjs/inspector');
@@ -111,6 +124,7 @@ onBeforeUnmount(() => {
     globalBabylon.engine.dispose();
     globalBabylon.engine = null;
   }
+  disposeMessageSystem();
 });
 
 </script>
@@ -118,6 +132,6 @@ onBeforeUnmount(() => {
 <template>
   <div class="flex-items-center m-10 p-3 bg-[#141A30] rounded-2xl">
     <canvas class="outline-none" ref="bjsCanvas" width="1080" height="607.5"/>
-<!--    <button @click="sendInitDeck(gameState.selfInitDeck)">发送卡组</button>-->
+    <button @click="sendInitDeck(gameState.selfInitDeck)">发送卡组</button>
   </div>
 </template>

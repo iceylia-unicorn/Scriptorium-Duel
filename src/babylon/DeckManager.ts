@@ -50,6 +50,8 @@ export class DeckManager {
     static placedClawMarks: Set<number> = new Set();
     static cardPlaceActionState = true;
 
+    private isEnable: boolean = true;
+
     // static cardHoverOnAction =
     public static getCreatureInstance(): DeckManager {
         if (!DeckManager.creatureInstance) {
@@ -59,10 +61,10 @@ export class DeckManager {
             DeckManager.creatureInstance = new DeckManager(
                 new Vector3(10.003179550170898, 3.130772113800049, -15.830220222473145),
                 staticUrl + "images/cards/base card/card_back.png");
-
         }
         return DeckManager.creatureInstance;
     }
+
     // static cardHoverOnAction =
     public static getSquirrelInstance(): DeckManager {
         if (!DeckManager.squirrelInstance) {
@@ -76,17 +78,36 @@ export class DeckManager {
         }
         return DeckManager.squirrelInstance;
     }
+    // 重置实例
+    public static reset() {
+        if (DeckManager.creatureInstance) {
+            // 移除事件监听器
+            DeckManager.creatureInstance = null!;
+            DeckManager.squirrelInstance = null!;
+        }
+    }
     // 初始化牌堆
-    initDeck(initialCards: Card[]) {
+    public initDeck(initialCards: Card[]) {
         this.updateDeck(initialCards.length);
         this.drawPile = this.shuffle([...initialCards]); // 洗牌
     }
 
     // 初始化松鼠牌堆
-    initSquirrelDeck(initialNum: number) {
+    public initSquirrelDeck(initialNum: number) {
         this.updateDeck(initialNum);
         for (let index = 0; index < initialNum; index++) {
             this.drawPile.push(Card.Create(this._scene, CARD_NAMES.Squirrel));
+        }
+    }
+
+    public setEnabled(isEnable: boolean) {
+        if(isEnable === this.isEnable) return;
+        this.isEnable = isEnable;
+        if(isEnable) {
+            this._baseCardMesh.setEnabled(true);
+        }
+        else{
+            this._baseCardMesh.setEnabled(false);
         }
     }
 
@@ -111,6 +132,7 @@ export class DeckManager {
             DeckManager.cardForPlaceTransformNode.rotation = new Vector3(1.3496281379015116, -3.141591216217944, -3.0547464333073426);
         }
         this.initClawMarks();
+        this.setEnabled(false);
     }
 
     // 洗牌算法

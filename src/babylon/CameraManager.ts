@@ -21,9 +21,18 @@ export class CameraManager {
     private _scene: Scene;
     private _canvas: HTMLCanvasElement;
     // private disabledKeys: Set<string>;
+    private keyHandler;
     private viewStatus: VIEWSTATUS = VIEWSTATUS.default;
     private readonly defaultTarget = new Vector3(-0.7421837071371951, 18.92943459100077, -18.71784432927812);
 
+    // // 重新绑定新的场景
+    // public reattachToScene(newScene: Scene, newCanvas: HTMLCanvasElement) {
+    //     this._scene = newScene;
+    //     this._canvas = newCanvas;
+    //
+    //     // 重新绑定相机控制
+    //     this._scene.activeCamera?.attachControl(this._canvas);
+    // }
     // 单例模式获取唯一实例。
     public static getInstance(): CameraManager {
         if (!CameraManager.instance) {
@@ -33,11 +42,17 @@ export class CameraManager {
             }
             CameraManager.instance = new CameraManager();
         }
+        // else if(!CameraManager.instance._scene.isDisposed){
+        //     CameraManager.instance.reattachToScene(
+        //         globalBabylon.scene!,
+        //         globalBabylon.canvas!
+        //     );
+        // }
         return CameraManager.instance;
     }
-    private constructor() {
-        this._scene = globalBabylon.scene!;
-        this._canvas = globalBabylon.canvas!;
+    private constructor(scene?: Scene, canvas?: HTMLCanvasElement) {
+        this._scene = scene || globalBabylon.scene!;
+        this._canvas = canvas || globalBabylon.canvas!;
 
         this.battleDefaultCamera = new UniversalCamera("battleDefaultCamera", new Vector3(-0.7407544520688198, 19.72898229374219, -19.318445146053843), this._scene);
         this.overlookCamera = new UniversalCamera("overlookCamera", new Vector3(-2.1197295966570405e-16, 30.95540428161621, 3.0498669147491455), this._scene);
@@ -49,10 +64,7 @@ export class CameraManager {
         this.overlookCamera.rotation = new Vector3(1.3962634015954636, 3.141592653589793, 3.141592653589793);// (debugNode as BABYLON.FreeCamera)
         this._scene.activeCamera = this.battleDefaultCamera;
 
-
-
-        // Listen for keyboard events
-        window.addEventListener('keydown', (event) => {
+        this.keyHandler = (event:any) => {
             if(this.viewStatus === VIEWSTATUS.overlook) {
                 return
             }
@@ -67,6 +79,10 @@ export class CameraManager {
                 }
             }
             switch (key) {
+                case 'f':
+                    this.switchCamera(this.battleDefaultCamera);
+                    this.battleDefaultCamera.attachControl(this._scene);
+                    break;
                 case 'w':
                     if(this.viewStatus === VIEWSTATUS.default){
                         this.switchCamera(this.overlookCamera);
@@ -105,11 +121,13 @@ export class CameraManager {
                     }
                     break;
             }
-        });
+        };
+        window.addEventListener('keydown', this.keyHandler);
+
     }
     // Function to switch cameras
     private switchCamera(camera: Camera){
-        this._scene.activeCamera!.detachControl(this._canvas);
+        this._scene.activeCamera?.detachControl(this._canvas);
         this._scene.activeCamera = camera;
     };
     private rotateCamera(camera: UniversalCamera, direction: string) {
@@ -123,7 +141,6 @@ export class CameraManager {
             case 'right':
                 camera.rotation.y += Math.PI / 6; // Rotate right 30 degrees
                 camera.rotation.x += Math.PI / 18; // Rotate down 10 degrees
-
                 break;
             case 'left':
                 camera.rotation.y -= Math.PI / 6; // Rotate left 30 degrees
@@ -131,7 +148,14 @@ export class CameraManager {
                 break;
         }
     }
-
+    // 重置实例
+    public static reset() {
+        if (CameraManager.instance) {
+            // 移除事件监听器
+            window.removeEventListener('keydown', CameraManager.instance.keyHandler);
+            CameraManager.instance = null!;
+        }
+    }
     public switchToBattleOverlook() {
         this.switchCamera(this.overlookCamera);
         this.viewStatus = VIEWSTATUS.battleOverlook;

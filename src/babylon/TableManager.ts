@@ -20,6 +20,12 @@ export class TableManager {
     private isBattleFiledEnable: boolean = true;
     static readonly zlevel1 = -0.51;
     // create instance under singleton pattern.
+    public static reset() {
+        if (TableManager.instance) {
+            // 移除事件监听器
+            TableManager.instance = null!;
+        }
+    }
     public static getInstance(): TableManager {
         if (!TableManager.instance) {
             // create instance after babylon init.
@@ -60,11 +66,9 @@ export class TableManager {
         this.isBattleFiledEnable = isEnable;
         if(isEnable){ //choose to show
             this.clawTransformNode.setEnabled(true);
-            this.isBattleFiledEnable = true;
         }
         else{
             this.clawTransformNode.setEnabled(false);
-            this.isBattleFiledEnable = false;
         }
     }
     // battlefield mesh init

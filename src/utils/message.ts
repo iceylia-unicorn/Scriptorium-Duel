@@ -1,11 +1,5 @@
-import {type App, createApp, h} from 'vue'
+import { createApp, h } from 'vue'
 import MessageComponent from '../components/Message.vue'
-interface MessageItem {
-    container: HTMLDivElement
-    remove: () => void
-}
-
-const messageQueue: MessageItem[] = []
 
 interface MessageOptions {
     type?: 'info' | 'success' | 'warning' | 'error'
@@ -13,21 +7,27 @@ interface MessageOptions {
     duration?: number
 }
 
+// 当前显示的消息实例
+let currentMessage: { remove: () => void } | null = null
+
 const createMessage = (options: MessageOptions) => {
+    // 关闭当前显示的消息
+    if (currentMessage) {
+        currentMessage.remove()
+        currentMessage = null
+    }
+
     const container = document.createElement('div')
     document.body.appendChild(container)
 
     const remove = () => {
-        document.body.removeChild(container)
-        const index = messageQueue.findIndex(item => item.container === container)
-        if (index !== -1) {
-            messageQueue.splice(index, 1)
-        }
-        updateMessageOffset()
+        setTimeout(() => {
+            document.body.removeChild(container)
+            currentMessage = null
+        }, 300) // 与 Message.vue 的过渡动画时间一致（300ms）
     }
 
-    let app: App<Element>
-    app = createApp({
+    const app = createApp({
         render() {
             return h(MessageComponent, {
                 type: options.type,
@@ -39,17 +39,7 @@ const createMessage = (options: MessageOptions) => {
     })
 
     app.mount(container)
-    messageQueue.push({ container, remove })
-    updateMessageOffset()
-}
-
-const updateMessageOffset = () => {
-    messageQueue.forEach((item, index) => {
-        const element = item.container.firstElementChild as HTMLElement
-        if (element) {
-            element.style.top = `${4 + index * 70}px`
-        }
-    })
+    currentMessage = { remove }
 }
 
 const message = {

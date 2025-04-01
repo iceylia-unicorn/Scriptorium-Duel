@@ -12,17 +12,17 @@
           v-if="visible"
           class="fixed top-4 left-1/2 -translate-x-1/2 min-w-80 px-6 py-4 rounded shadow-lg backdrop-blur-sm flex items-center"
           :class="typeStyles"
-      >
-        <span :class="iconClass" class="text-lg mr-2"></span>
-        <span class="flex-1">{{ message }}</span>
-        <span class="i-mdi-close cursor-pointer ml-2" @click="close"></span>
+          style="transform: translateX(-50%);">
+      <span :class="iconClass" class="text-lg mr-2"></span>
+      <span class="flex-1">{{ message }}</span>
+      <span class="i-mdi-close cursor-pointer ml-2" @click="close"></span>
       </div>
     </transition>
   </teleport>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed,type Ref } from 'vue'
+import {ref, onMounted, computed, type Ref} from 'vue'
 
 type MessageType = 'info' | 'success' | 'warning' | 'error'
 
@@ -75,9 +75,11 @@ const startTimer = () => {
 
 const close = () => {
   visible.value = false
-  if (timer.value) {
-    clearTimeout(timer.value)
-    timer.value = null
-  }
+  setTimeout(() => {
+    if (timer.value) {
+      clearTimeout(timer.value)
+      timer.value = null
+    }
+  }, 300)
 }
 </script>
