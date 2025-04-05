@@ -21,19 +21,20 @@ export class CameraManager {
     private _scene: Scene;
     private _canvas: HTMLCanvasElement;
     // private disabledKeys: Set<string>;
-    private keyHandler;
+    private keyHandler: (event: any) => void;
     private viewStatus: VIEWSTATUS = VIEWSTATUS.default;
     private readonly defaultTarget = new Vector3(-0.7421837071371951, 18.92943459100077, -18.71784432927812);
 
-    // // 重新绑定新的场景
-    // public reattachToScene(newScene: Scene, newCanvas: HTMLCanvasElement) {
-    //     this._scene = newScene;
-    //     this._canvas = newCanvas;
-    //
-    //     // 重新绑定相机控制
-    //     this._scene.activeCamera?.attachControl(this._canvas);
-    // }
-    // 单例模式获取唯一实例。
+    public switchAndLockOverlook() {
+        this.switchCamera(this.overlookCamera);
+        this.viewStatus = VIEWSTATUS.overlook;
+        // // 禁用相机控制/
+        // this._scene.activeCamera?.detachControl(this._canvas);
+
+    }
+    public unlockOverlook() {
+        this.viewStatus = VIEWSTATUS.battleOverlook;
+    }
     public static getInstance(): CameraManager {
         if (!CameraManager.instance) {
             // 确保已初始化
@@ -76,6 +77,7 @@ export class CameraManager {
                     this.switchCamera(this.battleDefaultCamera);
                     this.viewStatus = VIEWSTATUS.default;
                     return;
+
                 }
             }
             switch (key) {
@@ -155,10 +157,5 @@ export class CameraManager {
             window.removeEventListener('keydown', CameraManager.instance.keyHandler);
             CameraManager.instance = null!;
         }
-    }
-    public switchToBattleOverlook() {
-        this.switchCamera(this.overlookCamera);
-        this.viewStatus = VIEWSTATUS.battleOverlook;
-        this.battleDefaultCamera.target = this.defaultTarget;
     }
 }

@@ -10,6 +10,8 @@ import {
 } from "@babylonjs/core";
 import {globalBabylon} from "./globals.ts";
 import {staticUrl} from "../api";
+import type {Card} from "./Card.ts";
+import {CameraManager} from "./CameraManager.ts";
 
 export class TableManager {
     private static instance:TableManager;
@@ -22,7 +24,6 @@ export class TableManager {
     // create instance under singleton pattern.
     public static reset() {
         if (TableManager.instance) {
-            // 移除事件监听器
             TableManager.instance = null!;
         }
     }
@@ -36,7 +37,7 @@ export class TableManager {
         }
         return TableManager.instance;
     }
-    constructor() {
+    private constructor() {
         this._scene = globalBabylon.scene!;
         this.table = this.createTableMesh();
         this.clawTransformNode = this.createBattlefield();
@@ -70,6 +71,66 @@ export class TableManager {
         else{
             this.clawTransformNode.setEnabled(false);
         }
+    }
+    // 卡牌展示布局。
+    public layoutCardsGrid(cards: Card[], options?: {
+        maxPerRow?: number,
+        horizontalSpacing?: number,
+        verticalSpacing?: number
+    }) {
+        const config = {
+            maxPerRow: 5, // 默认每行5张
+            horizontalSpacing: 0.8, // 水平间距
+            verticalSpacing: 1.2, // 垂直间距（卡牌高度+间隔）
+            ...options
+        };
+
+        const cardWidth = 4;  // 与Card.ts定义保持一致
+        const cardHeight = 6;
+
+        // 以桌子中心为基准点
+        const tableCenter = new Vector3(0, 3, 0);
+
+        cards.forEach((card, index) => {
+            // 计算行列位置
+            const row = Math.floor(index / config.maxPerRow);
+            const col = index % config.maxPerRow;
+
+            // 计算当前行实际卡牌数量（最后一行可能不满）
+            const cardsInCurrentRow = Math.min(
+                cards.length - row * config.maxPerRow,
+                config.maxPerRow
+            );
+
+            // 计算水平居中偏移
+            const rowWidth = (cardsInCurrentRow - 1) * (cardWidth + config.horizontalSpacing);
+            const startX = tableCenter.x - rowWidth / 2;
+
+            // 计算垂直位置（从中心向下排列）
+            const yOffset = row * (cardHeight + config.verticalSpacing);
+
+            // 计算最终位置
+            const position = new Vector3(
+                startX + col * (cardWidth + config.horizontalSpacing),
+                tableCenter.y - yOffset,
+                TableManager.zlevel1 - 0.01 * row // 层级微调防止渲染重叠
+            );
+
+            // 设置卡牌位置和父级
+            card.show(this.table, position, new Vector3(0,0,0));
+
+            // 重置旋转角度
+            card.box.rotation.z = 0;
+
+            // 调整卡牌层级关系
+            card.box.position.z = TableManager.zlevel1 - 0.01 * row;
+        });
+        // CameraManager.getInstance().switchToBattleOverlook();
+        CameraManager.getInstance().switchAndLockOverlook()
+        // setTimeout(()=>{
+        //     CameraManager.getInstance().unlockOverlook();
+        // },2000);
+
     }
     // battlefield mesh init
     private createBattlefield() {
@@ -117,4 +178,5 @@ export class TableManager {
         });
         return clawTransformNode;
     }
+
 }

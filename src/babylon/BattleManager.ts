@@ -1,11 +1,26 @@
-import {AssetContainer, LoadAssetContainerAsync} from "@babylonjs/core";
+import {
+    ActionManager,
+    AssetContainer,
+    ExecuteCodeAction,
+    LoadAssetContainerAsync,
+    Quaternion,
+    Vector3
+} from "@babylonjs/core";
 import {globalBabylon} from "./globals.ts";
+import message from "../utils/message.ts";
+import {TableManager} from "./TableManager.ts";
+import {DeckManager} from "./DeckManager.ts";
+
 
 export class BattleManager {
     private static instance: BattleManager;//单例
     public turnOverAnimation;
     private isEnabled  = true; //是否启用
-    private bellContainer:AssetContainer;
+    // private bellContainer:AssetContainer;
+    private bellRootNode;
+    private bellMesh;
+    private isMyturn = true;
+
 
     // 单例模式获取唯一实例
     public static async getInstance(): Promise<BattleManager> {
@@ -15,28 +30,58 @@ export class BattleManager {
                 throw new Error("BattleManager 必须在场景初始化后使用！");
             }
             // 异步构造，先运行异步，再返回构造。
-            const bellContainer = await LoadAssetContainerAsync("models/bell.glb", globalBabylon.scene!);
+            const bellContainer = await LoadAssetContainerAsync("models/bell9.glb", globalBabylon.scene!);
             BattleManager.instance = new BattleManager(bellContainer)
         }
         return BattleManager.instance;
     }
 
     private constructor(bellContainer: AssetContainer) {
-        this.bellContainer = bellContainer;
-        bellContainer.animationGroups[0].stop();
+        // this.bellContainer = bellContainer;
         this.turnOverAnimation = bellContainer.animationGroups[0];
+        this.turnOverAnimation.stop();
+
         bellContainer.addAllToScene();
+
+        //control model through root node.
+        this.bellRootNode = bellContainer.meshes[0]; //meshes的第一个为__root__为了兼容glb模型与bjs的不同，比如坐标系就不一样。
+        this.bellRootNode.position = new Vector3(-12.424453735351562, 0.06219588592648506, -9.178736686706543)
+        this.bellRootNode.scaling = new Vector3(1.5, 1.5, 1.5000000560643836);// (debugNode as BABYLON.Mesh)
+        this.bellRootNode.rotationQuaternion = new Quaternion(0, 0.9924006069826459, 0.12304891409710288, 0);// (debugNode as BABYLON.Mesh)
+
+        this.bellMesh = bellContainer.meshes[1];
+        this.bellMesh.actionManager = new ActionManager(globalBabylon.scene);
+        this.bellMesh.actionManager.registerAction( new ExecuteCodeAction(
+            ActionManager.OnLeftPickTrigger,
+            () => {
+                if(this.isMyturn){
+                    this.turnOverAnimation.play(false);
+                    message.info("回合结束");
+                }
+            })
+        )
+        // hide battle scene in default.
+        this.setEnabled(false);
     }
-    public enable(isEnable:boolean): void {
+    // set meshes at battle scene show or hide
+    public setEnabled(isEnable:boolean): void {
         if(this.isEnabled === isEnable) return;
         this.isEnabled  = isEnable;
 
         if(isEnable){
             //启用战斗场景
-            this.bellContainer.addAllToScene();
+            this.bellMesh.setEnabled(true);
+            TableManager.getInstance().setBattleFiledEnabled(true);
+            DeckManager.getCreatureInstance().setEnabled(true);
+            DeckManager.getSquirrelInstance().setEnabled(true);
+
         }
         else{
-            this.bellContainer.removeAllFromScene();
+            this.bellMesh.setEnabled(false);
+            TableManager.getInstance().setBattleFiledEnabled(false);
+            DeckManager.getCreatureInstance().setEnabled(false);
+            DeckManager.getSquirrelInstance().setEnabled(false);
+
         }
     }
 

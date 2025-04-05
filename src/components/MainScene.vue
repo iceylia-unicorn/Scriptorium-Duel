@@ -70,7 +70,7 @@ onMounted(async () => {
       //set render priority, id 0 means render 1st.
       skybox.renderingGroupId = 0;
 
-      TableManager.getInstance();
+      const tableManager = TableManager.getInstance();
       initGUIMessageSystem(scene);
 
       CameraManager.getInstance();
@@ -92,6 +92,8 @@ onMounted(async () => {
 
       const ant2 = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_lice.png", 2, [ability_strafe, ability_tristrike]);
       const ant3 = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_lice.png", 2, [ability_strafe, ability_tristrike]);
+      const ant4 = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_lice.png", 2, [ability_strafe, ability_tristrike]);
+      const ant5 = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_lice.png", 2, [ability_strafe, ability_tristrike]);
 
       sendInitDeck(gameState.selfInitDeck);
       const creatureDeck = DeckManager.getCreatureInstance();
@@ -99,8 +101,11 @@ onMounted(async () => {
       creatureDeck.initDeck([ant, stoat, ant2, ant3]);
       squirrelDeck.initSquirrelDeck(15);
       const battleManager = await BattleManager.getInstance();
-      showGUIText("敌人来袭");
+      // battleManager.setEnabled(true);
 
+      showGUIText("这是你的初试卡牌");
+      // battleManager.setEnabled(true);
+      tableManager.layoutCardsGrid([ant,stoat,ant2,ant3,ant4,ant5]);
       if (import.meta.env.MODE === 'development') {
         await import('@babylonjs/inspector');
         await scene.debugLayer.show();
