@@ -6,8 +6,9 @@ import {
     MeshBuilder,
     Scene,
     StandardMaterial,
-    Texture, type TransformNode,
-    Vector3
+    Texture, TransformNode,
+    Vector3,
+    Animation
 } from "@babylonjs/core";
 import {loadImage, PRESET_CARDS} from "./Card-database.ts";
 import type {CardCost, Sigil} from "./Card-types.ts";
@@ -18,16 +19,19 @@ let cardWidth = 4, cardHeight = 6, cardDeep = 0.05; // card size
 
 
 export class Card {
-    box: Mesh;
-    cardName: Mesh;
-    cardAttack: Mesh;
-    cardHP: Mesh;
+    private box: Mesh;
+    private cardName: Mesh;
+    private cardAttack: Mesh;
+    private cardHP: Mesh;
+    public id:string; //root为未初始化的，squirrel代表松鼠牌，正常造物为uuid.
     // cardCost: Mesh;
     //最前面的模板，触发点击事件
-    topMask=MeshBuilder.CreatePlane("cardMask", {
+    topMask = MeshBuilder.CreatePlane("cardMask", {
         width: cardWidth,
         height: cardHeight
     });
+
+    rootNode: TransformNode;
     static zIndex1 = -0.051;
     static zIndex2 = -0.052;
     static topZindex = -0.053;
@@ -35,8 +39,8 @@ export class Card {
 
     private nameValue: string;
     private attackValue: string;
-    HPValue: string;
-    costValue: string;
+    private HPValue: string;
+    private costValue: string;
 
     cardNameTexture: DynamicTexture;
     cardHPTexture: DynamicTexture;
@@ -57,48 +61,106 @@ export class Card {
         this.cardNameTexture.clear();
         this.cardNameTexture.drawText(this.nameValue, null, null, "bold 90px monospace", "gray", "transparent", true, true);//assign null to position cause center position.
     }
-
-    getName() {
+    public getName() {
         return this.nameValue;
     }
-
     public setHP(value: string) {
         this.HPValue = value;
         this.cardHPTexture.clear();
         this.cardHPTexture.drawText(this.HPValue, null, null, "bold 300px monospace", "black", "transparent", true, true);//assign null to positon cause center position.
     }
-
-    public show(parent?: Mesh | TransformNode, position?: Vector3, rotation?: Vector3): void {
-        if (parent) {
-            this.box.parent = parent;
-
-        }
-        if (position) {
-            this.box.position = position;
-        }
-
-        if (rotation) {
-            this.box.rotation = rotation;
-        }
-        if (this.isVisible) return;
-        this.box.setEnabled(true);
-        this.box.getDescendants().forEach(child => child.setEnabled(true));
-        this.isVisible = true;
+    public getHP(){
+        return this.HPValue;
+    }
+    public getCost(){
+        return this.costValue;
     }
 
+    //
+    // public show(parent?: Mesh | TransformNode, position?: Vector3, rotation?: Vector3): void {
+    //     if (parent) {
+    //         this.rootNode.parent = parent;
+    //     }
+    //     if (position) {
+    //         this.rootNode.position = position;
+    //     }
+    //
+    //     if (rotation) {
+    //         this.rootNode.rotation = rotation;
+    //     }
+    //     if (this.isVisible) return;
+    //     this.rootNode.setEnabled(true);
+    //     // this.box.getDescendants().forEach(child => child.setEnabled(true));
+    //     this.isVisible = true;
+    // }
+
+    // 修改后的Card类show方法
+    public show(
+        parent?: Mesh | TransformNode,
+        position?: Vector3,
+        rotation?: Vector3,
+        animationOptions?: {
+            fromPosition?: Vector3;
+            duration?: number;
+        }
+    ): void {
+        // 基础位置设置
+        const targetPosition = position || Vector3.Zero();
+        const startPosition = animationOptions?.fromPosition || targetPosition;
+
+        // 直接设置初始位置
+        this.rootNode.position = startPosition.clone();
+
+        if (parent) this.rootNode.parent = parent;
+        if (rotation) this.rootNode.rotation = rotation;
+
+        // 动画参数
+        const duration = animationOptions?.duration ?? 30; // 默认30帧
+
+        // 当需要动画时
+        if (animationOptions?.fromPosition) {
+            Animation.CreateAndStartAnimation(
+                "cardAppear",
+                this.rootNode,
+                "position",
+                60, // fps
+                duration,
+                startPosition,
+                targetPosition,
+                Animation.ANIMATIONLOOPMODE_CONSTANT,
+                undefined,
+                () => {
+                    // 动画结束后确保最终位置准确
+                    this.rootNode.position = targetPosition;
+                }
+            );
+        }
+
+        // 原有可见性逻辑
+        if (this.isVisible) return;
+        this.rootNode.setEnabled(true);
+        this.isVisible = true;
+    }
     public hide(): void {
         if (!this.isVisible) return;
-        this.box.setEnabled(false);
-        this.box.getDescendants().forEach(child => child.setEnabled(false));
+        this.rootNode.setEnabled(false);
+        // this.box.getDescendants().forEach(child => child.setEnabled(false));
         this.isVisible = false;
     }
 
-    constructor(scene: Scene, name: string, attack: string, HP: string, cost: CardCost, portraitUrl = "", initSigilNum = 0, sigilsArr: Array<Sigil> | null = null) {
+    static hideAll(cards: Card[]): void {
+        cards.forEach(card => {
+            card.hide();
+        })
+    }
+
+    constructor(scene: Scene, name: string, attack: string, HP: string, cost: CardCost, portraitUrl = "", initSigilNum = 0, sigilsArr: Array<Sigil> | null = null, id:string = "root") {
         this.nameValue = name;
         this.attackValue = attack;
         this.HPValue = HP;
         this.costValue = cost;
         this.isVisible = true;
+        this.id = id;
 
         //Create base card mesh
         // let a = MeshBuilder.CreatePlane()
@@ -121,14 +183,16 @@ export class Card {
             width: cardWidth,
             height: cardHeight / 5
         }, scene);
-
-
+        this.rootNode = new TransformNode(name +"-" + id, scene, false);
+        this.topMask.parent = this.rootNode;
 
         // Card components position
         this.cardName.parent = this.box;
         this.cardAttack.parent = this.box;
         this.cardHP.parent = this.box;
-        this.topMask.parent = this.box;
+        this.box.parent = this.rootNode;
+
+
 
         this.cardName.position.z = -cardDeep / 2 - 0.001;
         this.cardAttack.position.z = -cardDeep / 2 - 0.001;
@@ -153,7 +217,7 @@ export class Card {
         this.cardNameTexture = new DynamicTexture("cardNameTexture", {width: 512, height: 256});
         this.cardAttackTexture = new DynamicTexture("cardAttackTexture", {width: 512, height: 256});
         this.cardHPTexture = new DynamicTexture("cardHPTexture", {width: 512, height: 256});
-        if(cost != "0"){
+        if (cost != "0") {
             const cardCost = MeshBuilder.CreatePlane("cardCost", {
                 width: cardWidth / 2.4,
                 height: cardWidth / 2.4
@@ -351,7 +415,10 @@ export class Card {
     }
 
     // 使用卡牌数据创建卡牌的通用工厂方法
-    static Create(scene: Scene, presetKey: string, customName?: string): Card {
+    static Create(scene: Scene, presetKey: string, id?: string): Card {
+        if (presetKey === "STOAT") {
+            return StoatCard.Create(scene);
+        }
         const preset = PRESET_CARDS[presetKey];
         if (!preset) {
             throw new Error(`Unknown preset card: ${presetKey}`);
@@ -359,13 +426,14 @@ export class Card {
 
         return new Card(
             scene,
-            customName || preset.name,
+            preset.name,
             preset.attack,
             preset.hp,
             preset.cost,
             preset.portraitUrl,
             preset.initSigilNum,
-            preset.sigilsArr
+            preset.sigilsArr,
+            id
         );
     }
 }
@@ -392,7 +460,7 @@ export class StoatCard extends Card {
             height: 4.3742176294, // 直接将scaling乘入尺寸
             width: 3.1520229398
         });
-        stoat_body.parent = this.box;
+        stoat_body.parent = this.rootNode;
         stoat_body.position = new Vector3(0.1708230972290039, -0.12214275449514389, -0.050999999046325684);
 
 
@@ -453,6 +521,7 @@ export class StoatCard extends Card {
         this.stoat_mouth_img.onload = checkAllImagesLoaded;
         this.stoat_mouth_open_img.onload = checkAllImagesLoaded;
     }
+
     public talk(text: string): void {
         this.startTalkAnimate();
         let currentText = "";
@@ -478,6 +547,7 @@ export class StoatCard extends Card {
         }, 400)
         // this.stopTalkAnimate();
     }
+
     static Create(scene: Scene): Card {
         const preset = PRESET_CARDS["STOAT"];
         return new StoatCard(
@@ -488,6 +558,7 @@ export class StoatCard extends Card {
             preset.cost,
         );
     }
+
     private talkAnimate = (() => {
         if (!this.isTalkAnimating) return;
         let currentTime = performance.now();

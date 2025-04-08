@@ -3,6 +3,7 @@ import {
     AssetContainer,
     ExecuteCodeAction,
     LoadAssetContainerAsync,
+    Mesh,
     Quaternion,
     Vector3
 } from "@babylonjs/core";
@@ -10,6 +11,12 @@ import {globalBabylon} from "./globals.ts";
 import message from "../utils/message.ts";
 import {TableManager} from "./TableManager.ts";
 import {DeckManager} from "./DeckManager.ts";
+import {showGUIText} from "./GUIMessageSystem.ts";
+import {eventEmitter, sendCardPlacement} from "../api/socket.ts";
+import {gameState} from "./gameState.ts";
+import {CARD_NAMES} from "./Card-database.ts";
+import {Card} from "./Card.ts";
+import {CameraManager, VIEWSTATUS} from "./CameraManager.ts";
 
 
 export class BattleManager {
@@ -20,8 +27,19 @@ export class BattleManager {
     private bellRootNode;
     private bellMesh;
     private isMyturn = true;
+    private lastGUITextTime = 0; // 新增时间戳记录 gui防止抖动
+    phase = "pending";
+    private turnCount = 0; //回合数。
 
+    /**
+     * 将实例置为null
+     */
+    public static reset() {
+        if (BattleManager.instance) {
 
+            BattleManager.instance = null!;
+        }
+    }
     // 单例模式获取唯一实例
     public static async getInstance(): Promise<BattleManager> {
         if (!BattleManager.instance) {
@@ -33,7 +51,67 @@ export class BattleManager {
             const bellContainer = await LoadAssetContainerAsync("models/bell9.glb", globalBabylon.scene!);
             BattleManager.instance = new BattleManager(bellContainer)
         }
+
+
         return BattleManager.instance;
+    }
+    // 对战开始前
+    public async pendingPhase(){
+        this.phase = "pending";
+        this.turnCount = 0;
+        if(gameState.selfHP < gameState.opponentHP){
+            this.isMyturn = true;
+        }
+        else if(gameState.selfHP > gameState.opponentHP){
+            this.isMyturn = false;
+        }
+        else{
+            this.isMyturn = !gameState.isOwner;
+        }
+        //抽三张卡
+        DeckManager.drawCreatureCards(2);
+        setTimeout(()=>{
+            DeckManager.drawSquirrelCards(2);
+            //todo需要确保在所有抽卡完毕后才下一个阶段
+            this.nextPhase();
+        }, 2*(DeckManager.drawCardsInterval+1));
+    }
+    // 新回合初始化
+    private initPhase(){
+        this.phase = "init";
+        DeckManager.drawPhaseCount = gameState.drawPhaseCount;
+        this.nextPhase();
+    }
+    // 抽取卡牌阶段
+    private drawCardPhase(){
+        CameraManager.getInstance().switchViewStatus(VIEWSTATUS.deck);
+        this.phase = "draw";
+        const _turnCount = this.turnCount;
+        setTimeout(()=>{
+            //说明10秒后都没有抽完，直接强制下一回合
+           if(this.phase === "draw" && this.turnCount === _turnCount){
+               DeckManager.drawPhaseCount = 0;
+               DeckManager.drawCreatureCards(DeckManager.drawPhaseCount);
+           }
+        },10*1000);
+    }
+    //
+    private playPhase(){
+        this.phase = "play";
+        //todo 需要添加DeckManager一个属性，控制在其余阶段不能放置卡牌。
+
+    }
+    private nextPhase(){
+        //
+        if(this.phase === "pending"){
+            this.initPhase();
+        }
+        else if(this.phase === "init"){
+            this.drawCardPhase();
+        }
+        else if(this.phase === "draw"){
+            this.playPhase();
+        }
     }
 
     private constructor(bellContainer: AssetContainer) {
@@ -55,15 +133,68 @@ export class BattleManager {
             ActionManager.OnLeftPickTrigger,
             () => {
                 if(this.isMyturn){
-                    this.turnOverAnimation.play(false);
-                    message.info("回合结束");
+                    if(this.phase === "play"){
+                        this.turnOverAnimation.play(false);
+
+                        message.info("回合结束");
+                        const placedCards = Array.from(DeckManager.placedClawMarks).map(mark => ({
+                            positionIndex: mark[0],
+                            cardId: mark[1]
+
+                        }));
+                        sendCardPlacement(placedCards);
+                        console.log(gameState.roomID);
+                        //todo 将isMyturn放入nextPhase中
+                        this.isMyturn = false; // next turn
+                        this.nextPhase();
+                    }
+
+                }
+                else {
+                    const now = Date.now();
+                    if (now - this.lastGUITextTime > 2000) {
+                        showGUIText("现在是对方回合");
+                        this.lastGUITextTime = now;
+                    }
                 }
             })
         )
         // hide battle scene in default.
         this.setEnabled(false);
+        // init listener
+        eventEmitter.on("receiveOpponentTurnOver", (data:any) => {
+            //需要清除之前放置的东西
+            const clawMarks = globalBabylon.scene!.getTransformNodeByName("clawTransformNode")?.getChildren();
+            if(!clawMarks){
+                throw new Error("clawMarks在未被初始化之前调用");
+            }
+
+            data.cards.forEach((placement: {cardId: string, positionIndex: number}) => {
+                placement.positionIndex += 4;
+                // 找到对应的地方卡牌
+                const card = DeckManager.opponentCards.find(c => c.id === placement.cardId);
+                const clawMask = clawMarks[placement.positionIndex];
+                if (card) {
+                    if (clawMask instanceof Mesh) {
+                        card.show(clawMask, Vector3.Zero(), Vector3.Zero());
+                        DeckManager.placedClawMarks.set(placement.positionIndex, placement.cardId);
+                    }
+                }
+                else if(placement.cardId === "squirrel"){
+                    if (clawMask instanceof Mesh) {
+                        const newSquirrel = Card.Create(globalBabylon.scene!, CARD_NAMES.Squirrel, "squirrel");
+                        newSquirrel.show(clawMask, Vector3.Zero(), Vector3.Zero());
+                        DeckManager.opponentCards.push(newSquirrel);
+                    }
+                }
+            });
+            this.isMyturn = true;
+        })
     }
-    // set meshes at battle scene show or hide
+
+    /**
+     * 设置战斗场景是否启用
+     */
     public setEnabled(isEnable:boolean): void {
         if(this.isEnabled === isEnable) return;
         this.isEnabled  = isEnable;
@@ -85,145 +216,4 @@ export class BattleManager {
         }
     }
 
-    //回合结束
-    turnOver() {
-        //播放动画
-
-
-        //更改状态
-    }
-
-    public playBellTurnOver(): void {
-        // this.turnOverAnimate = true;
-
-    }
-
 }
-
-
-// // import type {TableManager} from "./DeckManager.ts";
-//
-// // BattleManager.ts 扩展
-// import type { DeckManager } from "./DeckManager.ts";
-//
-// export class BattleManager {
-//     // 现有属性...
-//     // private enemyCards: Card[] = []; // 敌方卡牌数组
-//     private playerHealth = 5;        // 玩家生命值
-//     private enemyHealth = 5;         // 敌人生命值
-//     private currentRound = 1;        // 当前回合数
-//     public  currentPhase:string;
-//
-//     // // 添加敌人卡牌初始化方法（需由后端调用）
-//     // public initEnemyCards(cardsData: any[]) {
-//     //     this.enemyCards = cardsData.map(data =>
-//     //         Card.Create(this.deckManager.scene, data.presetKey)
-//     //     );
-//     //     // TODO: 将敌方卡牌放置到战场
-//     // }
-//
-//     // 扩展阶段方法
-//     private async playPhase() {
-//         console.log("进入出牌阶段");
-//         // 玩家出牌逻辑
-//         await this.waitForPlayerActions();
-//         this.currentPhase = 'damage';
-//         this.nextPhase();
-//     }
-//
-//     private async enemyPlayPhase() {
-//         console.log("进入对方出牌阶段");
-//         // 从后端获取敌方行动
-//         const enemyActions = await this.fetchEnemyActions();
-//         await this.executeEnemyActions(enemyActions);
-//         this.currentPhase = 'enemyDamage';
-//         this.nextPhase();
-//     }
-//
-//     // 新增战斗核心方法
-//     private async waitForPlayerActions(): Promise<void> {
-//         return new Promise((resolve) => {
-//             // 监听卡牌放置事件
-//             const handler = () => {
-//                 DeckManager.placedClawMarks.clear();
-//                 resolve();
-//             };
-//             DeckManager.cardForPlaceTransformNode.onDisposeObservable.addOnce(handler);
-//         });
-//     }
-//
-//     private async fetchEnemyActions(): Promise<any> {
-//         // TODO: 对接后端获取敌人行动
-//         return new Promise(resolve => setTimeout(() =>
-//             resolve({ actions: [] }), 1000
-//         ));
-//     }
-//
-//     private async executeEnemyActions(actions: any): Promise<void> {
-//         // 执行敌人行动（示例）
-//         actions.forEach(action => {
-//             const enemyCard = this.enemyCards[action.cardIndex];
-//             // TODO: 执行攻击/技能逻辑
-//         });
-//     }
-//
-//     // 扩展伤害结算
-//     private damagePhase() {
-//         console.log("进入伤害结算阶段");
-//         this.resolveCombat();
-//         this.currentPhase = 'enemyPlay';
-//         this.nextPhase();
-//     }
-//
-//     private resolveCombat() {
-//         // 示例：简单伤害计算
-//         const playerDamage = this.calculatePlayerDamage();
-//         const enemyDamage = this.calculateEnemyDamage();
-//
-//         this.enemyHealth -= playerDamage;
-//         this.playerHealth -= enemyDamage;
-//
-//         console.log(`本轮伤害：玩家造成 ${playerDamage}，敌方造成 ${enemyDamage}`);
-//         this.checkGameOver();
-//     }
-//
-//     private calculatePlayerDamage(): number {
-//         // TODO: 实现实际伤害计算
-//         return DeckManager.placedClawMarks.size;
-//     }
-//
-//     private calculateEnemyDamage(): number {
-//         // TODO: 实现实际伤害计算
-//         return this.enemyCards.length;
-//     }
-//
-//     private checkGameOver() {
-//         if (this.playerHealth <= 0) {
-//             console.log("游戏结束 - 玩家失败");
-//             // TODO: 触发游戏结束流程
-//         } else if (this.enemyHealth <= 0) {
-//             console.log("游戏结束 - 玩家胜利");
-//             // TODO: 触发胜利流程
-//         }
-//     }
-//
-//     // 新增回合控制
-//     public startBattle() {
-//         console.log(`第 ${this.currentRound} 回合开始`);
-//         this.nextPhase();
-//     }
-//
-//     public endRound() {
-//         this.currentRound++;
-//         console.log(`第 ${this.currentRound} 回合开始`);
-//         this.nextPhase();
-//     }
-// }
-//
-// // 类型声明扩展（新建 BattleTypes.ts）
-// export interface BattleAction {
-//     type: 'ATTACK' | 'ABILITY';
-//     cardIndex: number;
-//     targetIndex?: number;
-//     abilityType?: string;
-// }
