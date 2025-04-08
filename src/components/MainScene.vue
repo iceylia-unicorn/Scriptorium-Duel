@@ -1,33 +1,21 @@
 <script setup lang="ts">
 import {globalBabylon} from "../babylon/globals.ts"; // 初始化全局变量。
-
 import "@babylonjs/loaders/glTF";
 // import "@babylonjs/loaders";
-
 import {onBeforeMount, onBeforeUnmount, onMounted, ref} from "vue";
-import {sendInitDeck} from "../api/socket.ts";
-import {
-  Color3,
-  Engine,
-  MeshBuilder,
-  Scene,
-  SpotLight,
-  StandardMaterial,
-  Vector3
-} from "@babylonjs/core";
+import {eventEmitter, sendInitDeck} from "../api/socket.ts";
+import {Color3, Engine, MeshBuilder, Scene, SpotLight, StandardMaterial, Vector3} from "@babylonjs/core";
 
-import {CameraManager} from "../babylon/CameraManager.ts";
+import {CameraManager, VIEWSTATUS} from "../babylon/CameraManager.ts";
 import {DeckManager} from "../babylon/DeckManager.ts";
-import {Card, StoatCard} from "../babylon/Card.ts";
-import {staticUrl} from "../api";
-import {ability_strafe, ability_tristrike} from "../babylon/Card-database.ts";
+import {Card} from "../babylon/Card.ts";
 import {gameState} from "../babylon/gameState.ts"
 import {BattleManager} from "../babylon/BattleManager.ts";
 import {TableManager} from "../babylon/TableManager.ts";
-import { initGUIMessageSystem, showGUIText, disposeMessageSystem } from "../babylon/GUIMessageSystem.ts";
+import {disposeMessageSystem, initGUIMessageSystem, showGUIText} from "../babylon/GUIMessageSystem.ts";
 
 const bjsCanvas = ref<HTMLCanvasElement | null>(null);
-onBeforeMount(()=>{
+onBeforeMount(() => {
   if (globalBabylon.scene) {
     globalBabylon.scene.dispose();
     globalBabylon.scene = null;
@@ -39,8 +27,9 @@ onBeforeMount(()=>{
   // 新增：重置所有单例管理器
   CameraManager.reset();
   TableManager.reset();
-  // DeckManager.reset();  // 如果DeckManager也需要重置的话
-  // BattleManager.reset();// 如果BattleManager也需要重置的话
+  DeckManager.reset();  // 如果DeckManager也需要重置的话
+  BattleManager.reset();// 如果BattleManager也需要重置的话
+  eventEmitter.removeAllListeners();//移出所有监听。
 })
 onMounted(async () => {
   if (bjsCanvas.value) {
@@ -75,44 +64,72 @@ onMounted(async () => {
 
       CameraManager.getInstance();
 
-      const stoat = StoatCard.Create(scene);
-      stoat.box.position.x = 5;
-
-      stoat.show();
-
-
-
-      const ant = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_lice.png", 2, [ability_strafe, ability_tristrike]);
-      ant.box.position = new Vector3(1.8832770407085523e-16, -4.578444004058838, 1.407560110092163);// (debugNode as BABYLON.Mesh)
-      ant.box.rotation = new Vector3(1.1502502007897775, 3.141592653589793, 3.141592653589793);// (debugNode as BABYLON.Mesh)
-      ant.hide();
-      ant.show();
-      ability_tristrike.addFun(ant);
-      ability_tristrike.addFun(ant);
-
-      const ant2 = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_lice.png", 2, [ability_strafe, ability_tristrike]);
-      const ant3 = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_lice.png", 2, [ability_strafe, ability_tristrike]);
-      const ant4 = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_lice.png", 2, [ability_strafe, ability_tristrike]);
-      const ant5 = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_lice.png", 2, [ability_strafe, ability_tristrike]);
-
-      sendInitDeck(gameState.selfInitDeck);
-      const creatureDeck = DeckManager.getCreatureInstance();
-      const squirrelDeck = DeckManager.getSquirrelInstance();
-      creatureDeck.initDeck([ant, stoat, ant2, ant3]);
-      squirrelDeck.initSquirrelDeck(15);
-      const battleManager = await BattleManager.getInstance();
-      // battleManager.setEnabled(true);
-
-      showGUIText("这是你的初试卡牌");
-      // battleManager.setEnabled(true);
-      tableManager.layoutCardsGrid([ant,stoat,ant2,ant3,ant4,ant5]);
+      // 需要放在初始化之后，等待异步之前调用，否则会导致渲染被阻塞。
+      engine.runRenderLoop(() => {
+        scene.render();
+      });
       if (import.meta.env.MODE === 'development') {
         await import('@babylonjs/inspector');
         await scene.debugLayer.show();
       }
-      engine.runRenderLoop(() => {
-        scene.render();
+      // const stoat = StoatCard.Create(scene);
+      //
+      // stoat.show();
+      // const ant = new Card(scene, "bat", "1", "1", "1", staticUrl + "images/cards/portraits/portrait_lice.png", 2, [ability_strafe, ability_tristrike]);
+      // ant.box.position = new Vector3(1.8832770407085523e-16, -4.578444004058838, 1.407560110092163);// (debugNode as BABYLON.Mesh)
+      // ant.box.rotation = new Vector3(1.1502502007897775, 3.141592653589793, 3.141592653589793);// (debugNode as BABYLON.Mesh)
+      // ant.hide();
+      // ant.show();
+      // ability_tristrike.addFun(ant);
+      // ability_tristrike.addFun(ant);
+      const selfCards = gameState.selfInitDeck.map(card => {
+        const instance = Card.Create(scene, card.name, card.id);
+        return instance;
       });
+      sendInitDeck(gameState.selfInitDeck);
+
+      tableManager.layoutCardsGrid(selfCards);
+      // showGUIText("这是你的初始卡牌", ()=>{Card.hideAll(selfCards)});
+      //
+      await showGUIText("这是你的初始卡牌", () => {
+        Card.hideAll(selfCards);
+      });
+      if(gameState.opponentDeck.length<=0) {
+        // 等待接收到卡牌。
+        DeckManager.opponentCards = await new Promise(resolve => {
+          eventEmitter.once('opponentDeckReceived', () => {
+            resolve(gameState.opponentDeck.map((card: any) =>
+                Card.Create(scene, card.name, card.id)
+
+            ))
+          });
+        });
+      }
+      else{
+        DeckManager.opponentCards = await new Promise(resolve => {
+          resolve(gameState.opponentDeck.map((card: any) =>
+              Card.Create(scene, card.name, card.id)))
+        })
+      }
+
+      tableManager.layoutCardsGrid(DeckManager.opponentCards);
+
+      await showGUIText("这是对手的初始卡组", () => {
+        Card.hideAll(DeckManager.opponentCards);
+      });
+      const creatureDeck = DeckManager.getCreatureInstance();
+      const squirrelDeck = DeckManager.getSquirrelInstance();
+      creatureDeck.initDeck(selfCards);
+      squirrelDeck.initSquirrelDeck(15);
+
+
+      const battleManager = await BattleManager.getInstance();
+      battleManager.setEnabled(true);
+      // CameraManager.getInstance().unlockOverlook();
+      CameraManager.getInstance().switchViewStatus(VIEWSTATUS.default);
+      await new Promise(resolve => {setTimeout(resolve, 1000);});
+      await battleManager.pendingPhase();
+
 
     }
     globalBabylon.canvas = bjsCanvas.value;
