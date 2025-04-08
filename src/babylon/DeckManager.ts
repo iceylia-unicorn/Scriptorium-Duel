@@ -13,12 +13,16 @@ import {Card} from "./Card.ts";
 import {CARD_NAMES} from "./Card-database.ts";
 import {CameraManager} from "./CameraManager.ts";
 import {globalBabylon} from "./globals.ts";
+import {showGUIText} from "./GUIMessageSystem.ts";
 
 
 // 牌堆管理器类
 export class DeckManager {
     private readonly _scene: Scene;
     private readonly _baseCardMesh: Mesh; // 基础卡牌模型
+
+    static readonly drawCardsInterval = 250; //抽多张卡时的间隔。
+    static readonly drawCardAnimationDuration = 10; //抽卡帧数，共60帧一秒
 
     private static creatureInstance: DeckManager; //singleton pattern creature instance
     private static squirrelInstance: DeckManager; //squirrel instance
@@ -32,6 +36,8 @@ export class DeckManager {
 
     static handTransformNode: TransformNode;
     static cardForPlaceTransformNode: TransformNode;//准备放置的位置。
+    // 对手牌堆，用于调用已创建卡牌模型
+    static opponentCards: Card[] = [];
     // 抽牌堆（未使用的卡）
     drawPile: Card[] = [];
     // 弃牌堆（已使用/死亡的卡）
@@ -47,8 +53,10 @@ export class DeckManager {
     static handCardsCount = 0;
     static currentCard: Card | null = null;
     // 用于跟踪已放置卡牌的位置
-    static placedClawMarks: Set<number> = new Set();
+    static placedClawMarks: Map<number, string> = new Map();
     static cardPlaceActionState = true;
+    //抽卡阶段所能抽取数
+    static drawPhaseCount = 1; //抽牌阶段能抽取的牌数量。
 
     private isEnable: boolean = true;
 
@@ -96,7 +104,7 @@ export class DeckManager {
     public initSquirrelDeck(initialNum: number) {
         this.updateDeck(initialNum);
         for (let index = 0; index < initialNum; index++) {
-            this.drawPile.push(Card.Create(this._scene, CARD_NAMES.Squirrel));
+            this.drawPile.push(Card.Create(this._scene, CARD_NAMES.Squirrel, "squirrel"));
         }
     }
 
@@ -139,7 +147,33 @@ export class DeckManager {
     private shuffle(cards: Card[]): Card[] {
         return cards.sort(() => Math.random() - 0.5);
     }
+    // 抽取生物卡牌
+    public static drawCreatureCards(num: number) {
+        const instance = this.getCreatureInstance();
+        this._drawCardsFromDeck(instance, num);
+    }
 
+// 抽取松鼠卡牌
+    public static drawSquirrelCards(num: number) {
+        const instance = this.getSquirrelInstance();
+        this._drawCardsFromDeck(instance, num);
+    }
+// 通用抽卡逻辑
+    private static _drawCardsFromDeck(deckInstance: DeckManager, num: number) {
+        let count = 0;
+
+        const tryDraw = () => {
+            if (count < num && deckInstance.drawPile.length > 0) {
+                if (!deckInstance._isAnimating) {
+                    deckInstance.drawCardAnimation();
+                    count++;
+                }
+                setTimeout(tryDraw, DeckManager.drawCardsInterval); // 每200ms尝试抽下一张
+            }
+        };
+
+        tryDraw();
+    }
     // 创建基础卡牌模型（仅背面）
     private _createBaseCard(texturePath: string) {
         // 创建平面而非立方体
@@ -173,8 +207,13 @@ export class DeckManager {
             instance.actionManager = new ActionManager(this._scene);
             instance.actionManager.registerAction(
                 new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
-                    if (!this._isAnimating) {
-                        this.drawCardAnimation();
+                    if (!this._isAnimating && DeckManager.drawPhaseCount) {
+                        if(this.drawCardAnimation()){
+                            DeckManager.drawPhaseCount--;
+                        }
+                    }
+                    else if(!DeckManager.drawPhaseCount){
+                        showGUIText("目前不是抽卡阶段");
                     }
                 })
             );
@@ -206,7 +245,7 @@ export class DeckManager {
     drawCardAnimation() {
 
 
-        if (this._cardInstances.length === 0) return;
+        if (this._cardInstances.length === 0) return false;
 
         const topCard = this._cardInstances[this._cardInstances.length - 1];
         // 设置动画状态为进行中
@@ -232,14 +271,35 @@ export class DeckManager {
             }
         );
         const newCard = this.drawPile.pop();
+        // if (newCard) {
+        //     DeckManager.handCards.push(newCard);
+        //     newCard.show(DeckManager.handTransformNode, Vector3.Zero(), Vector3.Zero());
+        //     this.updateHandLayout();
+        //     this.addActionTrigger(newCard);
+        //     DeckManager.handCardsCount++;
+        //     // this.enableCardPlacement(); // Enable card placement after drawing a card
+        // }
         if (newCard) {
             DeckManager.handCards.push(newCard);
-            newCard.show(DeckManager.handTransformNode, Vector3.Zero(), Vector3.Zero());
-            this.updateHandLayout();
+
+            // 新的show调用带动画参数
+            const startPos = new Vector3(5, 3, 0); // Y轴上偏移5个单位
+            newCard.show(
+                DeckManager.handTransformNode,
+                new Vector3(4,1,0), // 目标位置
+                Vector3.Zero(),
+                {
+                    fromPosition: startPos,
+                    duration: 10 // 10帧动画
+                }
+            );
+
+            setTimeout(()=>{this.updateHandLayout();}, 11/60*1000);
             this.addActionTrigger(newCard);
             DeckManager.handCardsCount++;
-            // this.enableCardPlacement(); // Enable card placement after drawing a card
+            return true;
         }
+        return false;
     }
 
 // 更新手牌位置
@@ -269,7 +329,7 @@ export class DeckManager {
 
             // 计算旋转角度（以中心为0，两边对称）
             const rotationZ = (index - middleIndex) * deltaRotationZ;
-            card.box.rotation = new Vector3(0, 0, rotationZ);
+            card.rootNode.rotation = new Vector3(0, 0, rotationZ);
 
             // 计算Z轴位置
             let zPos: number;
@@ -296,7 +356,7 @@ export class DeckManager {
                 zPos = baseZ + (cardCount - 1 - index) * deltaZ;
             }
 
-            card.box.position = new Vector3(xPos, yPos, zPos);
+            card.rootNode.position = new Vector3(xPos, yPos, zPos);
         });
     }
 
@@ -380,11 +440,8 @@ export class DeckManager {
                                 if (!DeckManager.placedClawMarks.has(index) && DeckManager.currentCard) {
                                     const card = DeckManager.currentCard;
                                     card.topMask.actionManager!.actions = [];
-
-                                    card.box.parent = clawMark;
-                                    card.box.position = Vector3.Zero();
-                                    card.box.rotation = Vector3.Zero();
-                                    DeckManager.placedClawMarks.add(index); // 标记为已放置
+                                    card.show(clawMark,Vector3.Zero(),Vector3.Zero());
+                                    DeckManager.placedClawMarks.set(index, card.id); // 标记为已放置
                                     // 禁用卡牌交互，防止再次放置
                                     card.topMask.actionManager!.actions = [];
 
@@ -410,18 +467,28 @@ export class DeckManager {
 
     //等待放置
     enablePlacementOnClawMarks(card: Card) {
-        card.show(DeckManager.cardForPlaceTransformNode, Vector3.Zero(), Vector3.Zero())
-        DeckManager.cardPlaceActionState = false;
         setTimeout(() => {
             DeckManager.currentCard = card;
-        }, 300)
-
+        }, 100)
+        DeckManager.cardPlaceActionState = false;
+        card.show(DeckManager.cardForPlaceTransformNode, Vector3.Zero(), Vector3.Zero());
     }
 
     //取消放置
     static cancelPlacementOnClawMarks() {
+        // if (DeckManager.currentCard) {
+        //     const cardIndex = DeckManager.handCards.indexOf(DeckManager.currentCard);
+        //     if (cardIndex > -1) {
+        //         DeckManager.handCards.splice(cardIndex, 1);
+        //     }
+        //     DeckManager.currentCard.show(DeckManager.handTransformNode);
+        //     DeckManager.placedClawMarks.delete(cardIndex); // Remove the card ID
+        //     DeckManager.currentCard = null;
+        //     DeckManager.cardPlaceActionState = true;
+        // }
         DeckManager.currentCard?.show(DeckManager.handTransformNode);
         DeckManager.currentCard = null;
         DeckManager.cardPlaceActionState = true;
+        DeckManager.getSquirrelInstance().updateHandLayout();
     }
 }
