@@ -3,24 +3,28 @@ import {v4 as uuid} from "uuid";
 import {reactive} from "vue";
 
 
-
 export const gameState = reactive({
-    hp:100,
+    selfHP: 100,
+    opponentHP: 100,
     selfInitDeck: [
         {
             name: CARD_NAMES.Wolf,
-            id: uuid()
+            id: uuid(),
         },
         {
             name: CARD_NAMES.Bullfrog,
-            id: uuid()
+            id: uuid(),
         },
         {
             name: CARD_NAMES.Bullfrog,
-            id: uuid()
+            id: uuid(),
         }
     ],
-    roomid: "",
+    opponentDeck: [],
+    roomID: "",
     players: [],
+    isOwner: false,
+    drawPhaseCount: 1,//每回合抽卡数
+    // status: "pending",
 })
 
