@@ -4,7 +4,7 @@ import type {CARD_NAMES} from "../babylon/Card-database.ts";
 import {gameState} from "../babylon/gameState.ts";
 import { EventEmitter } from 'events';
 import type {App} from "vue";
-const eventEmitter = new EventEmitter();
+export const eventEmitter = new EventEmitter();
 // socket.ts
 let socketInstance: Socket | null = null;
 
@@ -35,11 +35,19 @@ export function initializeSocket():Promise<{event:string, data:string}> {
 
         // 监听对面发过来的卡组。
         socket.on("syncInitDeck", (data) => {
-            console.log(data);
+            gameState.opponentDeck = data;
+            eventEmitter.emit('opponentDeckReceived');
+            // console.log(data);
         });
         socket.on("duelEnd", (data)=>{
+
             console.log(data);
         })
+        // 接收对方结束回合。
+        socket.on('turnOver', (data:any) => {
+            console.log(data);
+            eventEmitter.emit('receiveOpponentTurnOver', data);
+        });
         resolve({event:"initial", data:"success"});
     })
 
@@ -52,7 +60,7 @@ export function createDuelRoom():Promise<{event:string, data:string}> {
         const socket = getSocket();
         socket.emit('createDuelRoom', (res: any) => {
             if (res.roomId) {
-                gameState.roomid = res.roomId;
+                gameState.roomID = res.roomId;
                 resolve({event: 'createDuelRoom',data: res.roomId});
             }
         });
@@ -84,4 +92,8 @@ export const sendInitDeck = (cards: Array<{ name: CARD_NAMES, id: string }>) => 
 
 export function provideEventEmitter(app:App) {
     app.provide('eventEmitter', eventEmitter);
+}
+export const sendCardPlacement = (cards: Array<{cardId: string, positionIndex: number}>) => {
+    const socket = getSocket();
+    socket.emit('turnOver', cards);
 }
