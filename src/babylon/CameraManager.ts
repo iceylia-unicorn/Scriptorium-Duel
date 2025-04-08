@@ -1,7 +1,7 @@
 import {Camera, Scene, UniversalCamera, Vector3} from "@babylonjs/core";
 import {DeckManager} from "./DeckManager.ts";
 import { globalBabylon } from "./globals"; // 导入全局状态
-enum VIEWSTATUS {
+export enum VIEWSTATUS {
     // 初始战斗视角
     "default" = 0,
     // 不可转视角的俯视
@@ -25,15 +25,81 @@ export class CameraManager {
     private viewStatus: VIEWSTATUS = VIEWSTATUS.default;
     private readonly defaultTarget = new Vector3(-0.7421837071371951, 18.92943459100077, -18.71784432927812);
 
-    public switchAndLockOverlook() {
-        this.switchCamera(this.overlookCamera);
-        this.viewStatus = VIEWSTATUS.overlook;
-        // // 禁用相机控制/
-        // this._scene.activeCamera?.detachControl(this._canvas);
-
-    }
     public unlockOverlook() {
         this.viewStatus = VIEWSTATUS.battleOverlook;
+    }
+    public switchToBattleOverlook() {
+        this.switchCamera(this.overlookCamera);
+        this.viewStatus = VIEWSTATUS.battleOverlook;
+        this.battleDefaultCamera.target = this.defaultTarget;
+    }
+    public switchViewStatus(status: VIEWSTATUS) {
+        this.initCamera();
+        this.viewStatus = VIEWSTATUS.default;
+        switch (status) {
+            case VIEWSTATUS.overlook:
+                this.switchCamera(this.overlookCamera);
+                // this.viewStatus = VIEWSTATUS.overlook;
+                break;
+            case VIEWSTATUS.battleOverlook:
+                this._event_w();
+                break;
+            case VIEWSTATUS.handCards:
+                this._event_s();
+                break;
+            case VIEWSTATUS.deck:
+                this._event_d();
+                break;
+            case VIEWSTATUS.default:
+                this.switchCamera(this.battleDefaultCamera);
+                break;
+        }
+    }
+    private _event_w(){
+        if(this.viewStatus === VIEWSTATUS.default){
+            this.switchCamera(this.overlookCamera);
+            this.viewStatus = VIEWSTATUS.battleOverlook;
+        }
+        else if(this.viewStatus === VIEWSTATUS.handCards){
+            this.rotateCamera(this.battleDefaultCamera, "up");
+            this.viewStatus = VIEWSTATUS.default;
+        }
+    }
+    private _event_s(){
+        if(this.viewStatus === VIEWSTATUS.battleOverlook){
+            this.switchCamera(this.battleDefaultCamera);
+            this.viewStatus = VIEWSTATUS.default;
+        }
+        else if(this.viewStatus === VIEWSTATUS.default){
+            this.rotateCamera(this.battleDefaultCamera, "down");
+            this.viewStatus = VIEWSTATUS.handCards;
+        }
+    }
+    private _event_d(){
+        if(this.viewStatus === VIEWSTATUS.default){
+            this.rotateCamera(this.battleDefaultCamera, "right");
+            this.viewStatus = VIEWSTATUS.deck;
+        }
+        else if(this.viewStatus === VIEWSTATUS.handCards){
+            this.rotateCamera(this.battleDefaultCamera, "up");
+            this.rotateCamera(this.battleDefaultCamera, "right");
+            this.viewStatus = VIEWSTATUS.deck;
+        }
+    }
+    private _event_a(){
+        if(this.viewStatus === VIEWSTATUS.deck){
+            this.rotateCamera(this.battleDefaultCamera, "left");
+            this.viewStatus = VIEWSTATUS.default;
+        }
+    }
+    //初始化位置和旋转。
+    private initCamera(){
+        this.battleDefaultCamera.target = this.defaultTarget;
+        this.battleDefaultCamera.rotation = new Vector3(0.9265418204398328, -0.002379704337376702, 0);
+        this.overlookCamera.target = new Vector3(-0.00110119057385674, 22.91462588299441, 2.961780354354939);
+        this.overlookCamera.position = new Vector3(0.001789230271242559, 23.887523651123047, 3.192997932434082);
+        // this.overlookCamera.rotation.z = Math.PI;
+        this.overlookCamera.rotation = new Vector3(1.3962634015954636, 3.141592653589793, 3.141592653589793);// (debugNode as BABYLON.FreeCamera)
     }
     public static getInstance(): CameraManager {
         if (!CameraManager.instance) {
@@ -43,12 +109,6 @@ export class CameraManager {
             }
             CameraManager.instance = new CameraManager();
         }
-        // else if(!CameraManager.instance._scene.isDisposed){
-        //     CameraManager.instance.reattachToScene(
-        //         globalBabylon.scene!,
-        //         globalBabylon.canvas!
-        //     );
-        // }
         return CameraManager.instance;
     }
     private constructor(scene?: Scene, canvas?: HTMLCanvasElement) {
@@ -57,12 +117,7 @@ export class CameraManager {
 
         this.battleDefaultCamera = new UniversalCamera("battleDefaultCamera", new Vector3(-0.7407544520688198, 19.72898229374219, -19.318445146053843), this._scene);
         this.overlookCamera = new UniversalCamera("overlookCamera", new Vector3(-2.1197295966570405e-16, 30.95540428161621, 3.0498669147491455), this._scene);
-        this.battleDefaultCamera.target = this.defaultTarget;
-        this.battleDefaultCamera.rotation = new Vector3(0.9265418204398328, -0.002379704337376702, 0);
-        this.overlookCamera.target = new Vector3(-0.00110119057385674, 22.91462588299441, 2.961780354354939);
-        this.overlookCamera.position = new Vector3(0.001789230271242559, 23.887523651123047, 3.192997932434082);
-        // this.overlookCamera.rotation.z = Math.PI;
-        this.overlookCamera.rotation = new Vector3(1.3962634015954636, 3.141592653589793, 3.141592653589793);// (debugNode as BABYLON.FreeCamera)
+        this.initCamera();
         this._scene.activeCamera = this.battleDefaultCamera;
 
         this.keyHandler = (event:any) => {
@@ -86,41 +141,16 @@ export class CameraManager {
                     this.battleDefaultCamera.attachControl(this._scene);
                     break;
                 case 'w':
-                    if(this.viewStatus === VIEWSTATUS.default){
-                        this.switchCamera(this.overlookCamera);
-                        this.viewStatus = VIEWSTATUS.battleOverlook;
-                    }
-                    else if(this.viewStatus === VIEWSTATUS.handCards){
-                        this.rotateCamera(this.battleDefaultCamera, "up");
-                        this.viewStatus = VIEWSTATUS.default;
-                    }
+                    this._event_w();
                     break;
                 case 's':
-                    if(this.viewStatus === VIEWSTATUS.battleOverlook){
-                        this.switchCamera(this.battleDefaultCamera);
-                        this.viewStatus = VIEWSTATUS.default;
-                    }
-                    else if(this.viewStatus === VIEWSTATUS.default){
-                        this.rotateCamera(this.battleDefaultCamera, "down");
-                        this.viewStatus = VIEWSTATUS.handCards;
-                    }
+                    this._event_s();
                     break;
                 case 'd':
-                    if(this.viewStatus === VIEWSTATUS.default){
-                        this.rotateCamera(this.battleDefaultCamera, "right");
-                        this.viewStatus = VIEWSTATUS.deck;
-                    }
-                    else if(this.viewStatus === VIEWSTATUS.handCards){
-                        this.rotateCamera(this.battleDefaultCamera, "up");
-                        this.rotateCamera(this.battleDefaultCamera, "right");
-                        this.viewStatus = VIEWSTATUS.deck;
-                    }
+                   this._event_d();
                     break;
                 case 'a':
-                    if(this.viewStatus === VIEWSTATUS.deck){
-                        this.rotateCamera(this.battleDefaultCamera, "left");
-                        this.viewStatus = VIEWSTATUS.default;
-                    }
+                    this._event_a();
                     break;
             }
         };
