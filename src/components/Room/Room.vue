@@ -52,7 +52,8 @@ const handleCreateRoom = async () => {
 
     roomStatus.value = "created";
     roomId.value = res.data;
-    console.log(roomId.value);
+    gameState.roomID = roomId.value;
+    gameState.isOwner = true;
     message.success("创建成功")
   })
 }
@@ -60,13 +61,12 @@ const handleCreateRoom = async () => {
 const handleJoinRoom = async (roomId: string) => {
   try {
     await initializeSocket();
-    const res: { event: string, data: string } = await joinDuelRoom(roomId);
-    console.log(res.data);
-
+    // const res: { event: string, data: string } = await joinDuelRoom(roomId);
+    await joinDuelRoom(roomId);
+    gameState.roomID = roomId;
     roomStatus.value = "ready";
 
     message.success("加入房间成功")
-
 
 
   } catch (err) {
