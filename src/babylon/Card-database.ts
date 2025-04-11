@@ -20,6 +20,7 @@ export const PRESET_CARDS: { [key: string]: CardData } = {
         hp: "1",
         cost: "0",
         portraitUrl: `${staticUrl}images/cards/portraits/portrait_squirrel.png`,
+
         tribe: CardTribe.NULL,
         rarity: CardRarity.COMMON
     },

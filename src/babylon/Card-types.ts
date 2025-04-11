@@ -6,7 +6,7 @@ export enum CardTribe {
     //卡牌种族
     NULL = '无',
     //松鼠
-    SQUIRER = '松鼠',
+    SQUIRREL = '松鼠',
     //鸟类
     AVIAN = '鸟',
     //兽类
@@ -34,7 +34,7 @@ export interface CardData {
     portraitUrl: string;
     initSigilNum?: number;
     sigilsArr?: Array<Sigil>;
-    tribe?: CardTribe;
+    tribe: CardTribe;
     rarity?: CardRarity;
 }
 
