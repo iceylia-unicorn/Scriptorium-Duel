@@ -127,7 +127,7 @@ export class CameraManager {
             const key = event.key.toLowerCase();
             // 当处于卡牌放置时，按esc退出。
             if (key === 'escape' || key === "s") {
-                if (DeckManager.currentCard && this.viewStatus === VIEWSTATUS.battleOverlook) {
+                if (DeckManager.currentCard && this.viewStatus === VIEWSTATUS.battleOverlook && DeckManager.currentSacrificeCount === 0) {
                     DeckManager.cancelPlacementOnClawMarks();
                     this.switchCamera(this.battleDefaultCamera);
                     this.viewStatus = VIEWSTATUS.default;

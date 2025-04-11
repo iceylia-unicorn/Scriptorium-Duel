@@ -10,10 +10,12 @@ import {
 } from "@babylonjs/core";
 import {staticUrl} from "../api";
 import {Card} from "./Card.ts";
-import {CARD_NAMES} from "./Card-database.ts";
+import {CARD_NAMES, loadImage} from "./Card-database.ts";
 import {CameraManager} from "./CameraManager.ts";
 import {globalBabylon} from "./globals.ts";
 import {showGUIText} from "./GUIMessageSystem.ts";
+import {eventEmitter} from "../api/socket.ts";
+import { v4 as uuid } from 'uuid';
 
 
 // 牌堆管理器类
@@ -52,11 +54,16 @@ export class DeckManager {
     };
     static handCardsCount = 0;
     static currentCard: Card | null = null;
+    // 当前卡牌献祭次数。
+    static currentSacrificeCount = 0;
     // 用于跟踪已放置卡牌的位置
     static placedClawMarks: Map<number, string> = new Map();
+    //是否开启卡牌放置
     static cardPlaceActionState = true;
     //抽卡阶段所能抽取数
-    static drawPhaseCount = 1; //抽牌阶段能抽取的牌数量。
+    static drawPhaseCount = 0; //抽牌阶段能抽取的牌数量。
+    //是否处于放置阶段。
+    static playStatus = false;
 
     private isEnable: boolean = true;
 
@@ -104,7 +111,7 @@ export class DeckManager {
     public initSquirrelDeck(initialNum: number) {
         this.updateDeck(initialNum);
         for (let index = 0; index < initialNum; index++) {
-            this.drawPile.push(Card.Create(this._scene, CARD_NAMES.Squirrel, "squirrel"));
+            this.drawPile.push(Card.Create(this._scene, CARD_NAMES.Squirrel, uuid()));
         }
     }
 
@@ -125,6 +132,14 @@ export class DeckManager {
         heightStep: 0.025,  // 每张卡高度差
         rotationRange: 0.23// 随机旋转幅度
     };
+    private static _cardActionMap = new Map<string, {
+        placeAction: ExecuteCodeAction,
+        handHoverAction: ExecuteCodeAction,
+        handHoverOutAction: ExecuteCodeAction
+    }>();
+    private isEdgeCard(index: number): boolean {
+        return index === 0 || index === DeckManager.handCardsCount;
+    }
 
     constructor(_deckPosition: Vector3, texturePath: string) {
         this._scene = globalBabylon.scene!;
@@ -207,13 +222,22 @@ export class DeckManager {
             instance.actionManager = new ActionManager(this._scene);
             instance.actionManager.registerAction(
                 new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
+                    // todo 有bug 可能在抽卡阶段之前就直接进行抽卡了
                     if (!this._isAnimating && DeckManager.drawPhaseCount) {
                         if(this.drawCardAnimation()){
                             DeckManager.drawPhaseCount--;
+                            if(DeckManager.drawPhaseCount === 0){
+                                eventEmitter.emit("drawCardsCompleted");
+                            }
                         }
                     }
                     else if(!DeckManager.drawPhaseCount){
-                        showGUIText("目前不是抽卡阶段");
+                        if(DeckManager.playStatus){
+                            showGUIText(`每回合只能抽${DeckManager.drawPhaseCount}张卡。不要贪心哦`);
+                        }
+                        else{
+                            showGUIText("还没有到你的抽卡回合");
+                        }
                     }
                 })
             );
@@ -271,22 +295,14 @@ export class DeckManager {
             }
         );
         const newCard = this.drawPile.pop();
-        // if (newCard) {
-        //     DeckManager.handCards.push(newCard);
-        //     newCard.show(DeckManager.handTransformNode, Vector3.Zero(), Vector3.Zero());
-        //     this.updateHandLayout();
-        //     this.addActionTrigger(newCard);
-        //     DeckManager.handCardsCount++;
-        //     // this.enableCardPlacement(); // Enable card placement after drawing a card
-        // }
         if (newCard) {
             DeckManager.handCards.push(newCard);
 
             // 新的show调用带动画参数
-            const startPos = new Vector3(5, 3, 0); // Y轴上偏移5个单位
+            const startPos = new Vector3(7, 0, -0.5); // Y轴上偏移5个单位
             newCard.show(
                 DeckManager.handTransformNode,
-                new Vector3(4,1,0), // 目标位置
+                new Vector3(4,0,-0.5), // 目标位置
                 Vector3.Zero(),
                 {
                     fromPosition: startPos,
@@ -295,7 +311,7 @@ export class DeckManager {
             );
 
             setTimeout(()=>{this.updateHandLayout();}, 11/60*1000);
-            this.addActionTrigger(newCard);
+            this.addHandActionTrigger(newCard);
             DeckManager.handCardsCount++;
             return true;
         }
@@ -359,71 +375,162 @@ export class DeckManager {
             card.rootNode.position = new Vector3(xPos, yPos, zPos);
         });
     }
-
-    addActionTrigger(card: Card) {
-
+    //添加手牌actions
+    addHandActionTrigger(card: Card) {
         const topMask = card.topMask;
-        // const index = DeckManager.handCardsCount;
         if (!topMask.actionManager) {
             topMask.actionManager = new ActionManager(this._scene);
         }
-        // 检查是否是边缘卡牌
-        const isEdgeCard = (index: number) => {
-            return index === 0 || index === DeckManager.handCardsCount;
-        };
-        //卡牌放置
-        topMask.actionManager.registerAction(
-            new ExecuteCodeAction(
-                ActionManager.OnLeftPickTrigger,
-                () => {
-                    if (DeckManager.cardPlaceActionState) {
-                        DeckManager.cameraManager?.switchToBattleOverlook();
-                        this.enablePlacementOnClawMarks(card);
-
-                    }
-
+        //需要注意的是
+        const placeAction = new ExecuteCodeAction(
+            ActionManager.OnLeftPickTrigger,
+            () => {
+                if(card.cost>DeckManager.placedClawMarks.size){
+                    showGUIText(`需要${card.cost}份祭品`);
+                    return;
                 }
-            )
+                if(!DeckManager.playStatus){
+                    showGUIText("请先抽卡");
+                    return;
+                }
+                if (DeckManager.cardPlaceActionState) {
+                    DeckManager.cameraManager?.switchToBattleOverlook();
+                    this.enablePlacementOnClawMarks(card);
+                }
+            }
         );
-        // 鼠标悬浮效果
-        topMask.actionManager.registerAction(
-            new ExecuteCodeAction(
-                ActionManager.OnPointerOverTrigger,
-                () => {
-                    if (DeckManager.cardPlaceActionState) {
-                        const index = DeckManager.handCards.indexOf(card);
-                        DeckManager.hoveredIndex = index;
-                        // 如果是边缘卡牌，记录状态
-                        if (isEdgeCard(index)) {
-                            DeckManager.lastHoveredState.index = index;
-                            DeckManager.lastHoveredState.wasEdge = true;
+
+        const handHoverAction = new ExecuteCodeAction(
+            ActionManager.OnPointerOverTrigger,
+            () => {
+                if (DeckManager.cardPlaceActionState) {
+                    const index = DeckManager.handCards.indexOf(card);
+                    DeckManager.hoveredIndex = index;
+                    if (this.isEdgeCard(index)) {
+                        DeckManager.lastHoveredState.index = index;
+                        DeckManager.lastHoveredState.wasEdge = true;
+                    }
+                    this.updateHandLayout();
+                }
+            }
+        );
+
+        const handHoverOutAction = new ExecuteCodeAction(
+            ActionManager.OnPointerOutTrigger,
+            () => {
+                if (DeckManager.cardPlaceActionState) {
+                    const index = DeckManager.handCards.indexOf(card);
+                    DeckManager.hoveredIndex = -1;
+                    if (!this.isEdgeCard(index)) {
+                        DeckManager.lastHoveredState.index = -1;
+                        DeckManager.lastHoveredState.wasEdge = false;
+                    }
+                    this.updateHandLayout();
+                }
+            }
+        );
+
+        // 注册动作
+        topMask.actionManager.registerAction(placeAction);
+        topMask.actionManager.registerAction(handHoverAction);
+        topMask.actionManager.registerAction(handHoverOutAction);
+
+        // 存储到映射表
+        DeckManager._cardActionMap.set(card.id, { placeAction, handHoverAction, handHoverOutAction });
+    }
+    //移除手牌actions
+    removeActionTriggers(card: Card) {
+        const actions = DeckManager._cardActionMap.get(card.id);
+        if (!actions || !card.topMask.actionManager) return;
+        card.topMask.actionManager.unregisterAction(actions.placeAction);
+        card.topMask.actionManager.unregisterAction(actions.handHoverAction);
+        card.topMask.actionManager.unregisterAction(actions.handHoverOutAction);
+
+        DeckManager._cardActionMap.delete(card.id);
+    }
+    async addClawActionTrigger(card:Card){
+        // 加载正确的牺牲标记图片
+        const img = await loadImage(staticUrl + "images/cards/misc/sacrifice_mark.png");
+
+        // 添加新的交互逻辑
+        card.topMask.actionManager = card.topMask.actionManager || new ActionManager(this._scene);
+
+        const hoverAction = new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, () => {
+            if(!DeckManager.currentCard || DeckManager.currentCard.cost <= DeckManager.currentSacrificeCount) return;
+            const ctx = card.maskTexture.getContext();
+            ctx.clearRect(0, 0, 400, 600);
+            ctx.drawImage(img, 0, 0, 400, 600);
+
+            // 获取图像数据
+            const imageData = ctx.getImageData(0, 0, 400, 600);
+            const data = imageData.data;
+            // 透明度阈值
+            const alphaThreshold = 0.5; // 透明度阈值（范围 0-1）
+
+            for (let i = 0; i < data.length; i += 4) {
+                const alpha = data[i + 3] / 255; // 获取 Alpha 通道值（范围 0-1）
+
+                if (alpha > alphaThreshold) {
+                    // 如果透明度高于阈值，设置为目标颜色 #830929
+                    data[i] = 131;   // R 通道
+                    data[i + 1] = 9; // G 通道
+                    data[i + 2] = 41; // B 通道
+                } else {
+                    // 如果透明度低于或等于阈值，设置为黑色 #000000
+                    data[i] = 143;   // R 通道
+                    data[i + 1] = 70; // G 通道
+                    data[i + 2] = 32; // B 通道
+                    data[i + 3] /= 2;
+                }
+            }
+            ctx.putImageData(imageData, 0, 0);
+            card.maskTexture.update();
+        });
+        // 移出时清除
+        const hoverOutAction = new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, () => {
+            if(!DeckManager.currentCard || DeckManager.currentCard.cost <= DeckManager.currentSacrificeCount) return;
+
+            card.maskTexture.getContext().clearRect(0, 0, 400, 600);
+            card.maskTexture.update();
+        });
+
+        // 点击动画
+        const clickAction = new ExecuteCodeAction(ActionManager.OnLeftPickTrigger, () => {
+            if(!DeckManager.currentCard || DeckManager.currentCard.cost <= DeckManager.currentSacrificeCount) return;
+            const startTime = Date.now();
+            const animate = () => {
+                const progress = (Date.now() - startTime) / 300; // 1秒动画
+                if (progress > 1) {
+                    card.hide();
+                    // todo如何处理黑山羊
+                    DeckManager.currentSacrificeCount++;
+                    for (const [key, val] of DeckManager.placedClawMarks.entries()) {
+                        if (val === card.id) {
+                            DeckManager.placedClawMarks.delete(key);
                         }
-                        this.updateHandLayout();
                     }
-
+                    return;
                 }
-            )
-        );
 
-        // 鼠标移出效果
-        topMask.actionManager.registerAction(
-            new ExecuteCodeAction(
-                ActionManager.OnPointerOutTrigger,
-                () => {
-                    if (DeckManager.cardPlaceActionState) {
-                        const index = DeckManager.handCards.indexOf(card);
+                const ctx = card.maskTexture.getContext();
+                const imageData = ctx.getImageData(0, 0, 400, 600);
+                const data = imageData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    data[i] = 131 * (1 - progress);  // R递减
+                    data[i + 1] = 32*(1 - progress);
 
-                        DeckManager.hoveredIndex = -1;
-                        // 如果不是边缘卡牌，清除最后的悬浮状态
-                        if (!isEdgeCard(index)) {
-                            DeckManager.lastHoveredState.index = -1;
-                            DeckManager.lastHoveredState.wasEdge = false;
-                        }
-                        this.updateHandLayout();
-                    }
+                    data[i+2] = 41*(1-progress);                   // B保持0
                 }
-            )
-        );
+                ctx.putImageData(imageData, 0, 0);
+                card.maskTexture.update();
+                requestAnimationFrame(animate);
+            };
+            animate();
+        });
+
+        card.topMask.actionManager.registerAction(hoverAction);
+        card.topMask.actionManager.registerAction(hoverOutAction);
+        card.topMask.actionManager.registerAction(clickAction);
 
     }
 
@@ -436,23 +543,23 @@ export class DeckManager {
                     clawMark.actionManager.registerAction(
                         new ExecuteCodeAction(
                             ActionManager.OnPickTrigger,
-                            () => {
-                                if (!DeckManager.placedClawMarks.has(index) && DeckManager.currentCard) {
+                            async () => {
+                                if (!DeckManager.placedClawMarks.has(index) && DeckManager.currentCard && DeckManager.currentCard.cost === DeckManager.currentSacrificeCount) {
                                     const card = DeckManager.currentCard;
-                                    card.topMask.actionManager!.actions = [];
+                                    this.removeActionTriggers(card);
+                                   // card.topMask.actionManager!.actions = [];
                                     card.show(clawMark,Vector3.Zero(),Vector3.Zero());
                                     DeckManager.placedClawMarks.set(index, card.id); // 标记为已放置
-                                    // 禁用卡牌交互，防止再次放置
-                                    card.topMask.actionManager!.actions = [];
 
                                     // 从 handCards 中移除已放置的卡牌
                                     const cardIndex = DeckManager.handCards.indexOf(card);
                                     if (cardIndex > -1) {
                                         DeckManager.handCards.splice(cardIndex, 1);
                                     }
-
+                                    await this.addClawActionTrigger(card);
                                     // 更新手牌布局
                                     this.updateHandLayout();
+                                    DeckManager.currentSacrificeCount = 0;
                                     DeckManager.currentCard = null; // 重置当前卡牌
                                     DeckManager.cardPlaceActionState = true; // 开启动画
 
@@ -476,16 +583,6 @@ export class DeckManager {
 
     //取消放置
     static cancelPlacementOnClawMarks() {
-        // if (DeckManager.currentCard) {
-        //     const cardIndex = DeckManager.handCards.indexOf(DeckManager.currentCard);
-        //     if (cardIndex > -1) {
-        //         DeckManager.handCards.splice(cardIndex, 1);
-        //     }
-        //     DeckManager.currentCard.show(DeckManager.handTransformNode);
-        //     DeckManager.placedClawMarks.delete(cardIndex); // Remove the card ID
-        //     DeckManager.currentCard = null;
-        //     DeckManager.cardPlaceActionState = true;
-        // }
         DeckManager.currentCard?.show(DeckManager.handTransformNode);
         DeckManager.currentCard = null;
         DeckManager.cardPlaceActionState = true;
