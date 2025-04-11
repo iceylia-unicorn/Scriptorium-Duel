@@ -17,7 +17,20 @@ import {gameState} from "./gameState.ts";
 import {CARD_NAMES} from "./Card-database.ts";
 import {Card} from "./Card.ts";
 import {CameraManager, VIEWSTATUS} from "./CameraManager.ts";
+import {CardTribe} from "./Card-types.ts";
+import { v4 as uuid } from 'uuid';
 
+//todo 对于不同阶段的错误操作其实应该只有一个
+// 1. 抽卡时多抽 -> 每回合只能抽一张卡，不要贪心
+// 2. 非自己回合抽卡 -> 请先等待对手出牌
+// 3. 出牌环节想要抽卡，同1 -> 每回合只能抽一张卡，不要贪心
+// 4. 没有抽卡就想要出牌 -> 请先抽卡
+// 5. 非自己回合抽卡 -> 请先等待对手出牌
+// 6. 非自己回合按铃铛 -> 现在还不是你的回合
+// 7. 抽卡阶段按铃铛 -> 请先抽卡
+// 总结 自己回合 非抽卡想要抽卡
+//  自己回合 没抽卡就想要操作
+// 在对面回合想要操作
 
 export class BattleManager {
     private static instance: BattleManager;//单例
@@ -28,7 +41,7 @@ export class BattleManager {
     private bellMesh;
     private isMyturn = true;
     private lastGUITextTime = 0; // 新增时间戳记录 gui防止抖动
-    phase = "pending";
+    public phase = "pending";
     private turnCount = 0; //回合数。
 
     /**
@@ -39,6 +52,9 @@ export class BattleManager {
 
             BattleManager.instance = null!;
         }
+    }
+    public getEnabled () {
+        return this.isEnabled;
     }
     // 单例模式获取唯一实例
     public static async getInstance(): Promise<BattleManager> {
@@ -69,17 +85,17 @@ export class BattleManager {
             this.isMyturn = !gameState.isOwner;
         }
         //抽三张卡
-        DeckManager.drawCreatureCards(2);
+        DeckManager.drawCreatureCards(3);
         setTimeout(()=>{
-            DeckManager.drawSquirrelCards(2);
-            //todo需要确保在所有抽卡完毕后才下一个阶段
-            this.nextPhase();
-        }, 2*(DeckManager.drawCardsInterval+1));
+            DeckManager.drawSquirrelCards(1);
+            setTimeout(()=>{
+                this.nextPhase();
+            }, DeckManager.drawCardsInterval+1000);
+        }, 3*DeckManager.drawCardsInterval+1000);
     }
     // 新回合初始化
     private initPhase(){
         this.phase = "init";
-        DeckManager.drawPhaseCount = gameState.drawPhaseCount;
         this.nextPhase();
     }
     // 抽取卡牌阶段
@@ -87,6 +103,14 @@ export class BattleManager {
         CameraManager.getInstance().switchViewStatus(VIEWSTATUS.deck);
         this.phase = "draw";
         const _turnCount = this.turnCount;
+        DeckManager.drawPhaseCount = gameState.drawPhaseCount;
+        // 新增：监听抽卡完成事件
+        const drawCompleteHandler = () => {
+            if (this.phase === "draw" && this.turnCount === _turnCount) {
+                this.nextPhase();
+            }
+        };
+        eventEmitter.once('drawCardsCompleted', drawCompleteHandler);
         setTimeout(()=>{
             //说明10秒后都没有抽完，直接强制下一回合
            if(this.phase === "draw" && this.turnCount === _turnCount){
@@ -94,13 +118,17 @@ export class BattleManager {
                DeckManager.drawCreatureCards(DeckManager.drawPhaseCount);
            }
         },10*1000);
+
     }
     //
     private playPhase(){
         this.phase = "play";
-        //todo 需要添加DeckManager一个属性，控制在其余阶段不能放置卡牌。
+        DeckManager.playStatus = true;
 
     }
+    //todo 添加对方回合结束的循环
+    // todo 添加结算环节。
+
     private nextPhase(){
         //
         if(this.phase === "pending"){
@@ -112,6 +140,13 @@ export class BattleManager {
         else if(this.phase === "draw"){
             this.playPhase();
         }
+        else if(this.phase === "play"){
+            DeckManager.playStatus = false;
+            //下一回合处理。
+            this.isMyturn = false;
+            this.turnCount++;
+        }
+        // else if(this.phase = "play")
     }
 
     private constructor(bellContainer: AssetContainer) {
@@ -145,8 +180,10 @@ export class BattleManager {
                         sendCardPlacement(placedCards);
                         console.log(gameState.roomID);
                         //todo 将isMyturn放入nextPhase中
-                        this.isMyturn = false; // next turn
                         this.nextPhase();
+                    }
+                    else{
+                        showGUIText("请先抽卡");
                     }
 
                 }
@@ -172,7 +209,11 @@ export class BattleManager {
             data.cards.forEach((placement: {cardId: string, positionIndex: number}) => {
                 placement.positionIndex += 4;
                 // 找到对应的地方卡牌
-                const card = DeckManager.opponentCards.find(c => c.id === placement.cardId);
+                let card = DeckManager.opponentCards.find(c => c.id === placement.cardId);
+                // 找不到就说明是松鼠牌。
+                if(!card){
+                    card = DeckManager.opponentCards.find(c =>c.tribe  === CardTribe.SQUIRREL);
+                }
                 const clawMask = clawMarks[placement.positionIndex];
                 if (card) {
                     if (clawMask instanceof Mesh) {
@@ -180,9 +221,9 @@ export class BattleManager {
                         DeckManager.placedClawMarks.set(placement.positionIndex, placement.cardId);
                     }
                 }
-                else if(placement.cardId === "squirrel"){
+                else{
                     if (clawMask instanceof Mesh) {
-                        const newSquirrel = Card.Create(globalBabylon.scene!, CARD_NAMES.Squirrel, "squirrel");
+                        const newSquirrel = Card.Create(globalBabylon.scene!, CARD_NAMES.Squirrel, uuid());
                         newSquirrel.show(clawMask, Vector3.Zero(), Vector3.Zero());
                         DeckManager.opponentCards.push(newSquirrel);
                     }

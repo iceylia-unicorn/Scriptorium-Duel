@@ -1,17 +1,20 @@
 import {staticUrl} from "../api";
 import {
+    Animation,
     Color3,
-    DynamicTexture, type ICanvasRenderingContext,
+    DynamicTexture,
+    type ICanvasRenderingContext,
     Mesh,
     MeshBuilder,
     Scene,
     StandardMaterial,
-    Texture, TransformNode,
-    Vector3,
-    Animation
+    Texture,
+    TransformNode,
+    Vector3
 } from "@babylonjs/core";
 import {loadImage, PRESET_CARDS} from "./Card-database.ts";
-import type {CardCost, Sigil} from "./Card-types.ts";
+import {type CardCost, CardTribe, type Sigil} from "./Card-types.ts";
+
 // 初始印记对应的位置。
 const addedPosition = [[-1.23, 1.6], [-1.23, 0.3]];
 const sigilWidth = 1.38;
@@ -19,18 +22,26 @@ let cardWidth = 4, cardHeight = 6, cardDeep = 0.05; // card size
 
 
 export class Card {
-    private box: Mesh;
+    private readonly box: Mesh;
     private cardName: Mesh;
     private cardAttack: Mesh;
     private cardHP: Mesh;
-    public id:string; //root为未初始化的，squirrel代表松鼠牌，正常造物为uuid.
+    //id uuid
+    readonly #id:string;
+    //种族
+    readonly #tribe:string;
     // cardCost: Mesh;
     //最前面的模板，触发点击事件
     topMask = MeshBuilder.CreatePlane("cardMask", {
         width: cardWidth,
         height: cardHeight
     });
-
+    get id(){
+        return this.#id;
+    }
+    get tribe(){
+        return this.#tribe
+    }
     rootNode: TransformNode;
     static zIndex1 = -0.051;
     static zIndex2 = -0.052;
@@ -39,8 +50,8 @@ export class Card {
 
     private nameValue: string;
     private attackValue: string;
-    private HPValue: string;
-    private costValue: string;
+    #hp:string;
+    #cost: string;
 
     cardNameTexture: DynamicTexture;
     cardHPTexture: DynamicTexture;
@@ -64,35 +75,20 @@ export class Card {
     public getName() {
         return this.nameValue;
     }
-    public setHP(value: string) {
-        this.HPValue = value;
+    set hp(value: number) {
+        this.#hp = value.toString();
         this.cardHPTexture.clear();
-        this.cardHPTexture.drawText(this.HPValue, null, null, "bold 300px monospace", "black", "transparent", true, true);//assign null to positon cause center position.
+        this.cardHPTexture.drawText(this.#hp, null, null, "bold 300px monospace", "black", "transparent", true, true);//assign null to positon cause center position.
     }
-    public getHP(){
-        return this.HPValue;
+    get hp(){
+        return parseInt(this.#hp);
     }
-    public getCost(){
-        return this.costValue;
+    get cost(): number {
+        return parseInt(this.#cost);
     }
-
-    //
-    // public show(parent?: Mesh | TransformNode, position?: Vector3, rotation?: Vector3): void {
-    //     if (parent) {
-    //         this.rootNode.parent = parent;
-    //     }
-    //     if (position) {
-    //         this.rootNode.position = position;
-    //     }
-    //
-    //     if (rotation) {
-    //         this.rootNode.rotation = rotation;
-    //     }
-    //     if (this.isVisible) return;
-    //     this.rootNode.setEnabled(true);
-    //     // this.box.getDescendants().forEach(child => child.setEnabled(true));
-    //     this.isVisible = true;
-    // }
+    set cost(value: number) {
+        this.#cost = value.toString();
+    }
 
     // 修改后的Card类show方法
     public show(
@@ -154,13 +150,14 @@ export class Card {
         })
     }
 
-    constructor(scene: Scene, name: string, attack: string, HP: string, cost: CardCost, portraitUrl = "", initSigilNum = 0, sigilsArr: Array<Sigil> | null = null, id:string = "root") {
+    constructor(scene: Scene, name: string, attack: string, HP: string, cost: CardCost,tribe:string, portraitUrl = "", initSigilNum = 0, sigilsArr: Array<Sigil> | null = null, id:string = "root") {
         this.nameValue = name;
         this.attackValue = attack;
-        this.HPValue = HP;
-        this.costValue = cost;
+        this.#hp = HP;
+        this.#cost = cost;
         this.isVisible = true;
-        this.id = id;
+        this.#id = id;
+        this.#tribe = tribe;
 
         //Create base card mesh
         // let a = MeshBuilder.CreatePlane()
@@ -223,7 +220,7 @@ export class Card {
                 height: cardWidth / 2.4
             }, scene);
             cardCost.parent = this.box;
-            cardCost.position = new Vector3(1.0254558324813843, 1.5573967695236206, Card.zIndex1);// (debugNode as BABYLON.Mesh)
+            cardCost.position = new Vector3(1.0254558324813843, 1.5573967695236206, Card.zIndex2);// (debugNode as BABYLON.Mesh)
 
             let cardCostTexture;
 
@@ -248,7 +245,7 @@ export class Card {
             cardCost.material = cardCostMat;
         }
 
-        this.maskTexture = new DynamicTexture("maskTexture", {width: 200, height: 200});
+        this.maskTexture = new DynamicTexture("maskTexture", {width: 400, height: 600});
 
         //Create components material
         let cardNameMat = new StandardMaterial("cardNameMat");
@@ -276,7 +273,7 @@ export class Card {
 
         this.cardNameTexture.drawText(this.nameValue, null, null, "bold 90px monospace", "gray", "transparent", true, true);
         this.cardAttackTexture.drawText(this.attackValue, null, null, "bold 300px monospace", "black", "transparent", true, true);
-        this.cardHPTexture.drawText(this.HPValue, null, null, "bold 300px monospace", "black", "transparent", true, true);
+        this.cardHPTexture.drawText(this.#hp, null, null, "bold 300px monospace", "black", "transparent", true, true);
 
         this.cardName.material = cardNameMat;
         this.cardAttack.material = cardAttackMat;
@@ -325,7 +322,6 @@ export class Card {
         }
         this.initSigilNum = initSigilNum;
         // this.sigilsArr = sigilsArr;
-
         if (sigilsArr) {
             sigilsArr.forEach((sig: Sigil, index) => {
                 this.curSigilNum = index;
@@ -430,6 +426,7 @@ export class Card {
             preset.attack,
             preset.hp,
             preset.cost,
+            preset.tribe,
             preset.portraitUrl,
             preset.initSigilNum,
             preset.sigilsArr,
@@ -454,7 +451,7 @@ export class StoatCard extends Card {
 
 
     constructor(scene: Scene, name: string, attack: string, HP: string, cost: CardCost) {
-        super(scene, name, attack, HP, cost);
+        super(scene, name, attack, HP, cost, CardTribe.CANINE);
         // let stoat_body = MeshBuilder.CreatePlane("stoat_body", {height: cardHeight, width: cardWidth});
         let stoat_body = MeshBuilder.CreatePlane("stoat_body", {
             height: 4.3742176294, // 直接将scaling乘入尺寸
