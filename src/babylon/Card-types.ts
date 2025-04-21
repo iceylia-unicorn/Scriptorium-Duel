@@ -32,10 +32,10 @@ export interface CardData {
     hp: string;
     cost: CardCost;  // 限制cost只能是这四个值
     portraitUrl: string;
-    initSigilNum?: number;
     sigilsArr?: Array<Sigil>;
     tribe: CardTribe;
     rarity?: CardRarity;
+    evolvedCard?: string;
 }
 
 // 定义Cost类型

@@ -4,7 +4,7 @@ import "@babylonjs/loaders/glTF";
 // import "@babylonjs/loaders";
 import {onBeforeMount, onBeforeUnmount, onMounted, ref} from "vue";
 import {eventEmitter, sendInitDeck} from "../api/socket.ts";
-import {Color3, Engine, MeshBuilder, Scene, SpotLight, StandardMaterial, Vector3} from "@babylonjs/core";
+import {Color3, Engine, MeshBuilder, RectAreaLight, Scene, SpotLight, StandardMaterial, Vector3} from "@babylonjs/core";
 
 import {CameraManager, VIEWSTATUS} from "../babylon/CameraManager.ts";
 import {DeckManager} from "../babylon/DeckManager.ts";
@@ -13,7 +13,7 @@ import {gameState} from "../babylon/gameState.ts"
 import {BattleManager} from "../babylon/BattleManager.ts";
 import {TableManager} from "../babylon/TableManager.ts";
 import {disposeMessageSystem, initGUIMessageSystem, showGUIText} from "../babylon/GUIMessageSystem.ts";
-
+import {ability_tristrike} from "../babylon/Card-database.ts";
 const bjsCanvas = ref<HTMLCanvasElement | null>(null);
 onBeforeMount(() => {
   if (globalBabylon.scene) {
@@ -32,6 +32,7 @@ onBeforeMount(() => {
   eventEmitter.removeAllListeners();//移出所有监听。
 })
 onMounted(async () => {
+
   if (bjsCanvas.value) {
     const createScene = async (canvas: HTMLCanvasElement | null) => {
       const engine = new Engine(canvas);
@@ -47,8 +48,13 @@ onMounted(async () => {
           10,
           4.14,
           scene);
-      spotLight.intensity = 100;
+      spotLight.intensity = 4;
       spotLight.diffuse = new Color3(0.8156862745098039, 0.6313725490196078, 0.38823529411764707);
+      const light = new RectAreaLight("areaLight", new Vector3(0, 4, 0), 2, 2, scene);
+      light.diffuse =  new Color3(0.8156862745098039, 0.6313725490196078, 0.38823529411764707);
+      light.specular = new Color3(0.8156862745098039, 0.6313725490196078, 0.38823529411764707);
+      light.intensity = 3;
+
       // create skybox, which is indeed an infinite distance box without reflection.
       const skybox = MeshBuilder.CreateBox("skyBox", {size: 150}, scene);
       const skyboxMaterial = new StandardMaterial("skybox", scene);
@@ -129,7 +135,7 @@ onMounted(async () => {
       CameraManager.getInstance().switchViewStatus(VIEWSTATUS.default);
       await new Promise(resolve => {setTimeout(resolve, 1000);});
       await battleManager.pendingPhase();
-
+      ability_tristrike.addFun(selfCards[0]);
 
     }
     globalBabylon.canvas = bjsCanvas.value;

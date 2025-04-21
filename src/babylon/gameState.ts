@@ -16,8 +16,12 @@ export const gameState = reactive({
             id: uuid(),
         },
         {
-            name: CARD_NAMES.Bullfrog,
+            name: CARD_NAMES.wolfCub,
             id: uuid(),
+        },
+        {
+            name: CARD_NAMES.bloodhound,
+            id: uuid()
         }
     ],
     opponentDeck: [],

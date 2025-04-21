@@ -10,19 +10,21 @@
   },
   "dependencies": {
     "@babylonjs/core": "^7.54.3",
-    "@babylonjs/gui": "^8.0.2",
+    "@babylonjs/gui": "^7.54.3",
     "@babylonjs/loaders": "^7.54.3",
     "@babylonjs/materials": "^7.54.3",
     "@types/uuid": "^10.0.0",
     "events": "^3.3.0",
     "socket.io-client": "^4.8.1",
     "uuid": "^11.1.0",
+    "versions": "^12.1.3",
+    "view": "^1.1.1",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
     "@babylonjs/inspector": "^7.54.3",
-    "@iconify/json": "^2.2.322",
+    "@iconify/json": "^2.2.327",
     "@types/events": "^3.0.3",
     "@unocss/preset-icons": "66.1.0-beta.6",
     "@unocss/vite": "^66.0.0",
@@ -30,7 +32,7 @@
     "@vue/tsconfig": "^0.7.0",
     "typescript": "~5.6.3",
     "unocss": "66.1.0-beta.6",
-    "vite": "^6.2.4",
+    "vite": "^6.2.6",
     "vue-tsc": "^2.2.8"
   }
 }

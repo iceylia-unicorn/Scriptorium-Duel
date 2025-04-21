@@ -36,6 +36,9 @@ export class Card {
         width: cardWidth,
         height: cardHeight
     });
+    public maskImageData: any;
+    //**进化后的卡牌名字*/
+    public evolvedCard: string;
     get id(){
         return this.#id;
     }
@@ -49,8 +52,10 @@ export class Card {
 
 
     private nameValue: string;
-    private attackValue: string;
+    #attack: string;
+    private readonly _attack:string;
     #hp:string;
+    private readonly _hp:string;
     #cost: string;
 
     cardNameTexture: DynamicTexture;
@@ -61,10 +66,12 @@ export class Card {
 
     initSigilNum = 0; //初始印记数量
     curSigilNum = 0; //当前印记数量
-    sigilsArr: Array<Sigil> = [];//印记数组。
+    sigilsArr: Set<Sigil> = new Set<Sigil>() ;//印记数组。
     public playedFuns: Array<Function> | Array<null> = []; //被放置时的回调函数
     strikeFuns: Array<Function> = []; //攻击时的回调函数
     beAttackedFuns = []; // 被攻击时的回调函数
+    /**已放置的回合数，第一次召唤不能攻击*/
+    placedTurnCount = 0;
 
     isVisible: boolean;//是否可见。
     public setName(value: string) {
@@ -89,7 +96,21 @@ export class Card {
     set cost(value: number) {
         this.#cost = value.toString();
     }
-
+    get attack():number {
+        return parseInt(this.#attack);
+    }
+    set attack(value:string) {
+        this.#attack = value;
+        this.cardAttackTexture.clear();
+        this.cardHPTexture.drawText(this.#attack, null, null, "bold 300px monospace", "black", "transparent", true, true);//assign null to positon cause center position.
+    }
+    //将属性重置
+    public resetAttribute(){
+        this.#attack = this._attack;
+        this.#hp = this._hp;
+        this.placedTurnCount = 0;
+        // this.cost = this._cost
+    }
     // 修改后的Card类show方法
     public show(
         parent?: Mesh | TransformNode,
@@ -150,14 +171,18 @@ export class Card {
         })
     }
 
-    constructor(scene: Scene, name: string, attack: string, HP: string, cost: CardCost,tribe:string, portraitUrl = "", initSigilNum = 0, sigilsArr: Array<Sigil> | null = null, id:string = "root") {
+    constructor(scene: Scene, name: string, attack: string, HP: string, cost: CardCost,tribe:string, portraitUrl = "", sigilsArr: Array<Sigil> | null = null,evolvedCard = "",  id:string = "root") {
         this.nameValue = name;
-        this.attackValue = attack;
+        this.#attack = attack;
+        this._attack = attack;
         this.#hp = HP;
+        this._hp = HP;
         this.#cost = cost;
+        // this._cost = cost;
         this.isVisible = true;
         this.#id = id;
         this.#tribe = tribe;
+        this.evolvedCard = evolvedCard;
 
         //Create base card mesh
         // let a = MeshBuilder.CreatePlane()
@@ -258,6 +283,7 @@ export class Card {
         cardHPMat.diffuseTexture = this.cardHPTexture;
         cardMaskMat.diffuseTexture = this.maskTexture;
 
+
         cardNameMat.specularColor = Color3.Black();
         cardAttackMat.specularColor = Color3.Black();
         cardHPMat.specularColor = Color3.Black();
@@ -272,7 +298,7 @@ export class Card {
 
 
         this.cardNameTexture.drawText(this.nameValue, null, null, "bold 90px monospace", "gray", "transparent", true, true);
-        this.cardAttackTexture.drawText(this.attackValue, null, null, "bold 300px monospace", "black", "transparent", true, true);
+        this.cardAttackTexture.drawText(this.#attack, null, null, "bold 300px monospace", "black", "transparent", true, true);
         this.cardHPTexture.drawText(this.#hp, null, null, "bold 300px monospace", "black", "transparent", true, true);
 
         this.cardName.material = cardNameMat;
@@ -294,6 +320,7 @@ export class Card {
 
             cardPortraitMat.diffuseTexture = cardPortraitTexture;
             cardPortraitMat.diffuseTexture.hasAlpha = true;
+            cardPortraitMat.useAlphaFromDiffuseTexture = true;
             cardPortraitMat.specularColor = Color3.Black();
             // portraitUrl
             let portraitImg = new Image();
@@ -320,8 +347,8 @@ export class Card {
             cardPortrait.position = new Vector3(0.03692801669239998, 0.4918590188026428, Card.zIndex1);// (debugNode as BABYLON.Mesh)
             // cardPortrait.position = new Vector3(0.22600166499614716, -0.018258297815918922, -0.050999999046325684);// (debugNode as BABYLON.Mesh)
         }
-        this.initSigilNum = initSigilNum;
-        // this.sigilsArr = sigilsArr;
+        this.initSigilNum = sigilsArr ? sigilsArr.length : 0;
+
         if (sigilsArr) {
             sigilsArr.forEach((sig: Sigil, index) => {
                 this.curSigilNum = index;
@@ -344,6 +371,7 @@ export class Card {
         sigilMesh.position.z = Card.zIndex2;
 
         let sigilMat = new StandardMaterial("sigilMat");
+        sigilMat.useAlphaFromDiffuseTexture = true;
         // sigilMat.diffuseColor = Color3.White();
         let sigilTexture = new DynamicTexture("sigilTexture", {width: 50, height: 50});
         sigilTexture.hasAlpha = true;
@@ -428,8 +456,8 @@ export class Card {
             preset.cost,
             preset.tribe,
             preset.portraitUrl,
-            preset.initSigilNum,
             preset.sigilsArr,
+            preset.evolvedCard,
             id
         );
     }

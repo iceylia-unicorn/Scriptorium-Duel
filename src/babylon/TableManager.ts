@@ -11,7 +11,7 @@ import {
 import {globalBabylon} from "./globals.ts";
 import {staticUrl} from "../api";
 import type {Card} from "./Card.ts";
-import {CameraManager} from "./CameraManager.ts";
+import {CameraManager, VIEWSTATUS} from "./CameraManager.ts";
 
 export class TableManager {
     private static instance:TableManager;
@@ -120,16 +120,12 @@ export class TableManager {
             card.show(this.table, position, new Vector3(0,0,0));
 
             // 重置旋转角度
-            card.box.rotation.z = 0;
+            card.rootNode.rotation.z = 0;
 
             // 调整卡牌层级关系
-            card.box.position.z = TableManager.zlevel1 - 0.01 * row;
+            card.rootNode.position.z = TableManager.zlevel1 - 0.01 * row;
         });
-        // CameraManager.getInstance().switchToBattleOverlook();
-        CameraManager.getInstance().switchAndLockOverlook()
-        // setTimeout(()=>{
-        //     CameraManager.getInstance().unlockOverlook();
-        // },2000);
+        CameraManager.getInstance().switchViewStatus(VIEWSTATUS.overlook);
 
     }
     // battlefield mesh init

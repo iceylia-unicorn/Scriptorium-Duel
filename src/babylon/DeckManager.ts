@@ -2,20 +2,24 @@
 import {
     ActionManager,
     Animation,
-    ExecuteCodeAction, InstancedMesh, Mesh,
+    ExecuteCodeAction,
+    InstancedMesh,
+    Mesh,
     MeshBuilder,
     type Scene,
-    StandardMaterial, Texture, TransformNode,
+    StandardMaterial,
+    Texture,
+    TransformNode,
     Vector3
 } from "@babylonjs/core";
 import {staticUrl} from "../api";
 import {Card} from "./Card.ts";
-import {CARD_NAMES, loadImage} from "./Card-database.ts";
-import {CameraManager} from "./CameraManager.ts";
+import {ability_guarddog, CARD_NAMES, loadImage} from "./Card-database.ts";
+import {CameraManager, VIEWSTATUS} from "./CameraManager.ts";
 import {globalBabylon} from "./globals.ts";
 import {showGUIText} from "./GUIMessageSystem.ts";
 import {eventEmitter} from "../api/socket.ts";
-import { v4 as uuid } from 'uuid';
+import {v4 as uuid} from 'uuid';
 
 
 // 牌堆管理器类
@@ -43,7 +47,7 @@ export class DeckManager {
     // 抽牌堆（未使用的卡）
     drawPile: Card[] = [];
     // 弃牌堆（已使用/死亡的卡）
-    discardPile: Card[] = [];
+    static discardPile: Card[] = [];
     // 手牌区（当前持有的卡）
     static handCards: Card[] = [];
     // 记录当前悬浮的卡牌索引和最后一次的悬浮状态
@@ -56,8 +60,8 @@ export class DeckManager {
     static currentCard: Card | null = null;
     // 当前卡牌献祭次数。
     static currentSacrificeCount = 0;
-    // 用于跟踪已放置卡牌的位置
-    static placedClawMarks: Map<number, string> = new Map();
+    // 追踪已经放置卡牌的位置
+    static placedCards: (Card | null)[] = new Array(8).fill(null); //
     //是否开启卡牌放置
     static cardPlaceActionState = true;
     //抽卡阶段所能抽取数
@@ -67,7 +71,8 @@ export class DeckManager {
 
     private isEnable: boolean = true;
 
-    // static cardHoverOnAction =
+    //**放置区数组*/
+    private static clawMarks:any;
     public static getCreatureInstance(): DeckManager {
         if (!DeckManager.creatureInstance) {
             if (!globalBabylon.scene || !globalBabylon.canvas) {
@@ -107,6 +112,17 @@ export class DeckManager {
         this.drawPile = this.shuffle([...initialCards]); // 洗牌
     }
 
+    /**
+     * 将卡牌放置到对应放置区，只有show以及placed[index]=card
+     * @param card 待放置卡牌
+     * @param index 需要放置的位置
+     */
+    public placeClawMark(card: Card, index: number) {
+        if(DeckManager.clawMarks[index] instanceof Mesh){
+            card.show(DeckManager.clawMarks[index],Vector3.Zero(),Vector3.Zero());
+        }
+        DeckManager.placedCards[index]= card; // 标记为已放置
+    }
     // 初始化松鼠牌堆
     public initSquirrelDeck(initialNum: number) {
         this.updateDeck(initialNum);
@@ -174,20 +190,20 @@ export class DeckManager {
         this._drawCardsFromDeck(instance, num);
     }
 // 通用抽卡逻辑
-    private static _drawCardsFromDeck(deckInstance: DeckManager, num: number) {
+    private static async _drawCardsFromDeck(deckInstance: DeckManager, num: number) {
         let count = 0;
 
-        const tryDraw = () => {
+        const tryDraw = async () => {
             if (count < num && deckInstance.drawPile.length > 0) {
                 if (!deckInstance._isAnimating) {
-                    deckInstance.drawCardAnimation();
+                    await deckInstance.drawCardAnimation();
                     count++;
                 }
                 setTimeout(tryDraw, DeckManager.drawCardsInterval); // 每200ms尝试抽下一张
             }
         };
 
-        tryDraw();
+        await tryDraw();
     }
     // 创建基础卡牌模型（仅背面）
     private _createBaseCard(texturePath: string) {
@@ -209,7 +225,7 @@ export class DeckManager {
     }
 
     // 更新牌堆显示
-    private updateDeck(count: number) {
+    private async updateDeck(count: number) {
         // 调整实例数量
         while (this._cardInstances.length > count) {
             this._cardInstances.pop()?.dispose();
@@ -221,24 +237,24 @@ export class DeckManager {
             this._cardInstances.push(instance);
             instance.actionManager = new ActionManager(this._scene);
             instance.actionManager.registerAction(
-                new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
-                    // todo 有bug 可能在抽卡阶段之前就直接进行抽卡了
+                new ExecuteCodeAction(ActionManager.OnPickTrigger, async () => {
                     if (!this._isAnimating && DeckManager.drawPhaseCount) {
-                        if(this.drawCardAnimation()){
+                        if (await this.drawCardAnimation()) {
                             DeckManager.drawPhaseCount--;
-                            if(DeckManager.drawPhaseCount === 0){
+                            if (DeckManager.drawPhaseCount === 0) {
                                 eventEmitter.emit("drawCardsCompleted");
                             }
                         }
-                    }
-                    else if(!DeckManager.drawPhaseCount){
-                        if(DeckManager.playStatus){
-                            showGUIText(`每回合只能抽${DeckManager.drawPhaseCount}张卡。不要贪心哦`);
+                    } else if (!DeckManager.drawPhaseCount) {
+                        if (DeckManager.playStatus) {
+                            //todo可能不是一张抽牌
+                            showGUIText(`每回合只能抽1张卡。不要贪心哦`);
+                        } else {
+                            await showGUIText(`drawPhaseCount=${DeckManager.drawPhaseCount}`);
+
                         }
-                        else{
-                            showGUIText("还没有到你的抽卡回合");
-                        }
                     }
+                    //else只能是isAnimating了
                 })
             );
         }
@@ -264,9 +280,18 @@ export class DeckManager {
             });
         }
     }
-
+    // 场上的祭品数量
+    private totalPlacedCost(){
+        let total = 0;
+        for(let i = 0; i < 4; i++){
+            if(DeckManager.placedCards[i]){
+                total++;
+            }
+        }
+        return total;
+    }
     // 抽牌动画
-    drawCardAnimation() {
+    async drawCardAnimation() {
 
 
         if (this._cardInstances.length === 0) return false;
@@ -385,7 +410,7 @@ export class DeckManager {
         const placeAction = new ExecuteCodeAction(
             ActionManager.OnLeftPickTrigger,
             () => {
-                if(card.cost>DeckManager.placedClawMarks.size){
+                if(card.cost>this.totalPlacedCost()){
                     showGUIText(`需要${card.cost}份祭品`);
                     return;
                 }
@@ -394,7 +419,7 @@ export class DeckManager {
                     return;
                 }
                 if (DeckManager.cardPlaceActionState) {
-                    DeckManager.cameraManager?.switchToBattleOverlook();
+                    DeckManager.cameraManager?.switchViewStatus(VIEWSTATUS.battleOverlook);
                     this.enablePlacementOnClawMarks(card);
                 }
             }
@@ -460,10 +485,11 @@ export class DeckManager {
             const ctx = card.maskTexture.getContext();
             ctx.clearRect(0, 0, 400, 600);
             ctx.drawImage(img, 0, 0, 400, 600);
-
+            // ctx.willReadFrequently = true;
             // 获取图像数据
             const imageData = ctx.getImageData(0, 0, 400, 600);
             const data = imageData.data;
+
             // 透明度阈值
             const alphaThreshold = 0.5; // 透明度阈值（范围 0-1）
 
@@ -504,11 +530,14 @@ export class DeckManager {
                     card.hide();
                     // todo如何处理黑山羊
                     DeckManager.currentSacrificeCount++;
-                    for (const [key, val] of DeckManager.placedClawMarks.entries()) {
-                        if (val === card.id) {
-                            DeckManager.placedClawMarks.delete(key);
+                    DeckManager.placedCards.forEach((item,index)=>{
+                        if(index< 4 && item){
+                            if(item.id === card.id){
+                                DeckManager.placedCards[index] = null;
+                            }
                         }
-                    }
+
+                    })
                     return;
                 }
 
@@ -536,6 +565,7 @@ export class DeckManager {
 
     private initClawMarks() {
         const clawMarks = this._scene.getTransformNodeByName("clawTransformNode")?.getChildren();
+        DeckManager.clawMarks = clawMarks;
         if (clawMarks) {
             clawMarks.forEach((clawMark, index) => {
                 if (index < 4 && clawMark instanceof Mesh) {
@@ -544,12 +574,23 @@ export class DeckManager {
                         new ExecuteCodeAction(
                             ActionManager.OnPickTrigger,
                             async () => {
-                                if (!DeckManager.placedClawMarks.has(index) && DeckManager.currentCard && DeckManager.currentCard.cost === DeckManager.currentSacrificeCount) {
+                                if (!DeckManager.placedCards[index] && clawMarks[index] && DeckManager.currentCard && DeckManager.currentCard.cost === DeckManager.currentSacrificeCount) {
                                     const card = DeckManager.currentCard;
                                     this.removeActionTriggers(card);
-                                   // card.topMask.actionManager!.actions = [];
-                                    card.show(clawMark,Vector3.Zero(),Vector3.Zero());
-                                    DeckManager.placedClawMarks.set(index, card.id); // 标记为已放置
+                                    this.placeClawMark(card, index);
+                                    //判断对方是否有守卫者印记
+                                    if(!DeckManager.placedCards[index+4]){
+                                        for(let i = 4; i <8; i++){
+                                            if(i==index+4) continue;
+                                            const opCard = DeckManager.placedCards[i];
+                                            if(opCard&&opCard.sigilsArr.has(ability_guarddog)){
+                                                this.placeClawMark(opCard, index+4);
+                                                console.log(DeckManager.placedCards);
+                                                DeckManager.placedCards[i] = null;
+                                                break;
+                                            }
+                                        }
+                                    }
 
                                     // 从 handCards 中移除已放置的卡牌
                                     const cardIndex = DeckManager.handCards.indexOf(card);
@@ -557,6 +598,7 @@ export class DeckManager {
                                         DeckManager.handCards.splice(cardIndex, 1);
                                     }
                                     await this.addClawActionTrigger(card);
+                                    CameraManager.getInstance().switchViewStatus(VIEWSTATUS.default);
                                     // 更新手牌布局
                                     this.updateHandLayout();
                                     DeckManager.currentSacrificeCount = 0;
@@ -583,6 +625,7 @@ export class DeckManager {
 
     //取消放置
     static cancelPlacementOnClawMarks() {
+        if(DeckManager.currentCard?.rootNode.parent != DeckManager.cardForPlaceTransformNode) return;
         DeckManager.currentCard?.show(DeckManager.handTransformNode);
         DeckManager.currentCard = null;
         DeckManager.cardPlaceActionState = true;
