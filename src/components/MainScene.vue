@@ -93,6 +93,7 @@ onMounted(async () => {
         return instance;
       });
       sendInitDeck(gameState.selfInitDeck);
+      console.log(selfCards);
 
       tableManager.layoutCardsGrid(selfCards);
       // showGUIText("这是你的初始卡牌", ()=>{Card.hideAll(selfCards)});

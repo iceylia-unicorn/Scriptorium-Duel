@@ -1,6 +1,8 @@
 import {type CardData, CardRarity, CardTribe} from "./Card-types.ts";
 import {staticUrl} from "../api";
-import type {Card} from "./Card.ts";
+import {Card} from "./Card.ts";
+import {DeckManager} from "./DeckManager.ts";
+import {globalBabylon} from "./globals.ts";
 
 
 export enum CARD_NAMES {
@@ -27,6 +29,10 @@ export enum CARD_NAMES {
     wolfCub = "WOLFCUB",
     /**猎犬**/
     bloodhound = "BLOODHOUND",
+    /**13号孩子**/
+    jerseyDevilSleeping = "JERSEY_SLEEPING",
+    /**13号孩子**/
+    jerseyDevil = "JERSEY",
 
 }
 
@@ -47,7 +53,7 @@ export const ability_tristrike = {
     }
 }
 export const ability_strafe = {
-    name: "Tristrike",
+    name: "strafe",
     description: "攻击后按指定方向移动。",
     addFun: (card: Card) => {
         // 添加图标
@@ -96,6 +102,17 @@ export const ability_guarddog = {
     addFun: (card: Card) => {
         card.drawSigil(staticUrl + "images/cards/sigils/ability_guarddog.png");
         card.sigilsArr.add(ability_guarddog);
+    }
+}
+export const ability_sacrificial = {
+    name: "sacrificial",
+    description: "被献祭时不会死亡",
+    addFun: (card: Card) => {
+        card.drawSigil(staticUrl + "images/cards/sigils/ability_sacrificial.png");
+        card.sigilsArr.add(ability_sacrificial);
+        card.onSacrificeFuns[0] = ()=>{
+            DeckManager.currentSacrificeCount++;
+        }
     }
 }
 
@@ -207,6 +224,7 @@ export const PRESET_CARDS: { [key: string]: CardData } = {
         cost: "1",
         portraitUrl:`${staticUrl}images/cards/portraits/portrait_wolfcub.png`,
         tribe: CardTribe.CANINE,
+        rarity:CardRarity.COMMON,
         sigilsArr: [ability_evolve_1],
         evolvedCard: CARD_NAMES.Wolf
     },
@@ -217,7 +235,64 @@ export const PRESET_CARDS: { [key: string]: CardData } = {
         cost: "2",
         portraitUrl:`${staticUrl}images/cards/portraits/portrait_bloodhound.png`,
         tribe: CardTribe.CANINE,
+        rarity:CardRarity.COMMON,
         sigilsArr: [ability_guarddog]
+    },
+    [CARD_NAMES.jerseyDevilSleeping]:{
+        name:"13号孩子",
+        attack: "0",
+        hp: "1",
+        cost: "1",
+        portraitUrl: `${staticUrl}images/cards/portraits/portrait_jerseydevil_sleeping.png`,
+        tribe: CardTribe.HOOVED,
+        rarity: CardRarity.RARE,
+        sigilsArr: [ability_sacrificial],
+        isSpawned:true,
+        onCreate: (card)=>{
+            card.onSacrificeFuns.push(()=>{
+                const index = DeckManager.getPlacedCardIndex(card);
+                if(!DeckManager.tempPlacedCards[index]){
+                    DeckManager.tempPlacedCards[index] = DeckManager.getSpawnedCard(CARD_NAMES.jerseyDevil);
+                    DeckManager.getSquirrelInstance().addClawActionTrigger(DeckManager.tempPlacedCards[index]);
+                }
+                let temp = DeckManager.tempPlacedCards[index];
+                if(index == -1) return;
+
+                DeckManager.tempPlacedCards[index] = DeckManager.placedCards[index];
+                DeckManager.tempPlacedCards[index]!.hide();
+                DeckManager.getSquirrelInstance().placeClawMark(temp, index);
+            })
+            //todo 需要将衍生卡牌进行回收，并且这张13号孩子的回收工作应该会与众不同
+
+        }
+    },
+    [CARD_NAMES.jerseyDevil]:{
+        name:"13号孩子",
+        attack: "2",
+        hp: "1",
+        cost: "1",
+        portraitUrl: `${staticUrl}images/cards/portraits/portrait_jerseydevil.png`,
+        tribe: CardTribe.HOOVED,
+        rarity: CardRarity.RARE,
+        sigilsArr: [ability_sacrificial, ability_flying],
+        onCreate: (card)=>{
+            card.onSacrificeFuns.push(()=>{
+                const index = DeckManager.getPlacedCardIndex(card);
+                if(!DeckManager.tempPlacedCards[index]){
+                    DeckManager.tempPlacedCards[index] = Card.Create(globalBabylon.scene!, CARD_NAMES.jerseyDevil);
+                    DeckManager.getSquirrelInstance().addClawActionTrigger(DeckManager.tempPlacedCards[index]);
+
+                }
+                let temp = DeckManager.tempPlacedCards[index];
+                if(index == -1) return;
+                console.log(card);
+
+                DeckManager.tempPlacedCards[index] = DeckManager.placedCards[index];
+                DeckManager.tempPlacedCards[index]!.hide();
+                DeckManager.getSquirrelInstance().placeClawMark(temp, index);
+
+            })
+        }
     }
 }
 // 卡牌分类索引

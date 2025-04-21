@@ -36,6 +36,8 @@ export interface CardData {
     tribe: CardTribe;
     rarity?: CardRarity;
     evolvedCard?: string;
+    isSpawned?:boolean;
+    onCreate?: (card: Card) => void;//创建成功后的回调
 }
 
 // 定义Cost类型

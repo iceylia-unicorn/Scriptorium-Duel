@@ -184,8 +184,8 @@ export class BattleManager {
     }
     private async resolvePhase() {
         this.phase = "resolve";
-        if(this.turnCount <= 1){
-            console.log("第一回合不攻击");
+        if(this.turnCount < 3){
+            console.log("双方第一回合不攻击");
             await this.nextPhase();
             return;
         }
@@ -306,7 +306,7 @@ export class BattleManager {
             case "resolve": //1.自己回合结束，2在initPhase等待时对方结束->resolve->initPhase
                 this.isMyturn = !this.isMyturn; // 直接切换回合归属
                 console.log("isMyturn被切换为"+this.isMyturn);
-                if (!this.isMyturn) this.turnCount++;
+                this.turnCount++;
                 await this.initPhase(); // 无论谁的回合都重新初始化
                 break;
         }
@@ -365,7 +365,7 @@ export class BattleManager {
                         message.info("回合结束");
 
                         const placedCards = DeckManager.placedCards.map((item, index) =>
-                            item ? {positionIndex: index, cardId: item.id} : null)
+                            item ? {positionIndex: index, cardId: item.id, presetKey:item.presetKey} : null)
                             .filter(item => item !== null)
                         sendCardPlacement(placedCards);
 
@@ -373,7 +373,6 @@ export class BattleManager {
                     } else {
                         showGUIText("请先抽卡");
                     }
-
                 } else {
                     const now = Date.now();
                     if (now - this.lastGUITextTime > 2000) {
@@ -387,34 +386,23 @@ export class BattleManager {
         this.setEnabled(false);
         // init listener
         eventEmitter.on("receiveOpponentTurnOver", async (data: any) => {
-                //需要清除之前放置的东西
-                // const clawMarks = globalBabylon.scene!.getTransformNodeByName("clawTransformNode")?.getChildren();
-                // if (!clawMarks) {
-                //     throw new Error("clawMarks在未被初始化之前调用");
-                // }
-
-                data.cards.forEach((placement: { cardId: string, positionIndex: number }) => {
+                data.cards.forEach((placement: { cardId: string, positionIndex: number,presetKey:string }) => {
                     placement.positionIndex += 4;
                     // 找到对应的地方卡牌
                     let card = DeckManager.opponentCards.find(c => c.id === placement.cardId);
-                    // 找不到就说明是松鼠牌。
-                    if (!card) {
+                    // 找不到就说明是松鼠牌或者是衍生牌或者是进化牌。
+                    if (!card && placement.presetKey == CARD_NAMES.Squirrel) {
                         card = DeckManager.opponentCards.find(c => c.tribe === CardTribe.SQUIRREL);
                     }
+                    else{
+                        card = DeckManager.getSpawnedCard(placement.presetKey);
+                    }
                     DeckManager.placedCards[placement.positionIndex]?.hide();
-
-                    // const clawMask = clawMarks[placement.positionIndex];
                     if (!card) {
                         card = Card.Create(globalBabylon.scene!, CARD_NAMES.Squirrel, uuid());
-
                     }
                     DeckManager.getSquirrelInstance().placeClawMark(card,placement.positionIndex);
-                    // if (clawMask instanceof Mesh) {
-                    //     card.show(clawMask, Vector3.Zero(), Vector3.Zero());
-                    // }
                     DeckManager.opponentCards.push(card);
-                    //改版
-                    // DeckManager.placedClawMarks.set(placement.positionIndex, placement.cardId);
                     DeckManager.placedCards[placement.positionIndex] = card;
 
                 });

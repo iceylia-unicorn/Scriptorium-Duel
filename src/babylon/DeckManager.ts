@@ -62,6 +62,21 @@ export class DeckManager {
     static currentSacrificeCount = 0;
     // 追踪已经放置卡牌的位置
     static placedCards: (Card | null)[] = new Array(8).fill(null); //
+    // 用于战斗时临时存放卡牌实例
+    static tempPlacedCards: (Card | null)[] = new Array(8).fill(null); //
+    // 衍生卡牌池
+    static spawnedCardPool: Map<string, Card[]> = new Map();
+
+    static getPlacedCardIndex(card: Card): number {
+        let res = -1;
+        DeckManager.placedCards.forEach((instance:Card|null, index:number) => {
+            console.log(instance?.id, card.id);
+            if(instance?.id == card.id){
+                res = index;
+            }
+        })
+        return res;
+    }
     //是否开启卡牌放置
     static cardPlaceActionState = true;
     //抽卡阶段所能抽取数
@@ -84,8 +99,6 @@ export class DeckManager {
         }
         return DeckManager.creatureInstance;
     }
-
-    // static cardHoverOnAction =
     public static getSquirrelInstance(): DeckManager {
         if (!DeckManager.squirrelInstance) {
             if (!globalBabylon.scene || !globalBabylon.canvas) {
@@ -98,6 +111,7 @@ export class DeckManager {
         }
         return DeckManager.squirrelInstance;
     }
+
     // 重置实例
     public static reset() {
         if (DeckManager.creatureInstance) {
@@ -406,7 +420,6 @@ export class DeckManager {
         if (!topMask.actionManager) {
             topMask.actionManager = new ActionManager(this._scene);
         }
-        //需要注意的是
         const placeAction = new ExecuteCodeAction(
             ActionManager.OnLeftPickTrigger,
             () => {
@@ -473,7 +486,7 @@ export class DeckManager {
 
         DeckManager._cardActionMap.delete(card.id);
     }
-    async addClawActionTrigger(card:Card){
+    public async addClawActionTrigger(card:Card){
         // 加载正确的牺牲标记图片
         const img = await loadImage(staticUrl + "images/cards/misc/sacrifice_mark.png");
 
@@ -527,17 +540,9 @@ export class DeckManager {
             const animate = () => {
                 const progress = (Date.now() - startTime) / 300; // 1秒动画
                 if (progress > 1) {
-                    card.hide();
-                    // todo如何处理黑山羊
-                    DeckManager.currentSacrificeCount++;
-                    DeckManager.placedCards.forEach((item,index)=>{
-                        if(index< 4 && item){
-                            if(item.id === card.id){
-                                DeckManager.placedCards[index] = null;
-                            }
-                        }
-
-                    })
+                    card.maskTexture.getContext().clearRect(0, 0, 400, 600);
+                    card.maskTexture.update();
+                    card.onSacrificeFuns.forEach(fun => fun());
                     return;
                 }
 
@@ -630,5 +635,27 @@ export class DeckManager {
         DeckManager.currentCard = null;
         DeckManager.cardPlaceActionState = true;
         DeckManager.getSquirrelInstance().updateHandLayout();
+    }
+
+    /**
+     * 通过预设名从衍生卡牌池中获取衍生卡牌。
+     * @param presetKey CardNames的预设名字
+     */
+    static getSpawnedCard(presetKey: string): Card {
+        const pool = this.spawnedCardPool.get(presetKey) || [];
+        if (pool.length > 0) {
+            return pool.pop()!;
+        }
+        const newCard = Card.Create(globalBabylon.scene!, presetKey);
+        return newCard;
+    }
+
+    /**
+     * 回收卡牌到衍生卡牌池中
+     * @param card
+     */
+    static recycleSpawnedCard(card: Card) {
+        const pool = this.spawnedCardPool.get(card.presetKey) || [];
+        pool.push(card);
     }
 }

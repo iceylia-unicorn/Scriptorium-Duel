@@ -1,4 +1,5 @@
 import {staticUrl} from "../api";
+import {v4 as uuid} from 'uuid';
 import {
     Animation,
     Color3,
@@ -14,6 +15,7 @@ import {
 } from "@babylonjs/core";
 import {loadImage, PRESET_CARDS} from "./Card-database.ts";
 import {type CardCost, CardTribe, type Sigil} from "./Card-types.ts";
+import {DeckManager} from "./DeckManager.ts";
 
 // 初始印记对应的位置。
 const addedPosition = [[-1.23, 1.6], [-1.23, 0.3]];
@@ -37,13 +39,24 @@ export class Card {
         height: cardHeight
     });
     public maskImageData: any;
+    // public placedIndex: number = -1;
     //**进化后的卡牌名字*/
     public evolvedCard: string;
+    readonly #presetKey: string;
+    //**是否为衍生牌*/
+    readonly #isSpawned: boolean;
+    get presetKey(): string {
+        return this.#presetKey;
+    }
     get id(){
         return this.#id;
     }
     get tribe(){
         return this.#tribe
+    }
+    //**是否为衍生牌*/
+    get isSpawned(){
+        return this.#isSpawned;
     }
     rootNode: TransformNode;
     static zIndex1 = -0.051;
@@ -70,6 +83,18 @@ export class Card {
     public playedFuns: Array<Function> | Array<null> = []; //被放置时的回调函数
     strikeFuns: Array<Function> = []; //攻击时的回调函数
     beAttackedFuns = []; // 被攻击时的回调函数
+    onSacrificeFuns = [()=>{
+        this.hide();
+        DeckManager.currentSacrificeCount++;
+        DeckManager.placedCards.forEach((item,index)=>{
+            if(index< 4 && item){
+                if(item.id == this.id){
+                    DeckManager.placedCards[index] = null;
+                }
+            }
+
+        })
+    }]; //献祭后的回调
     /**已放置的回合数，第一次召唤不能攻击*/
     placedTurnCount = 0;
 
@@ -171,18 +196,21 @@ export class Card {
         })
     }
 
-    constructor(scene: Scene, name: string, attack: string, HP: string, cost: CardCost,tribe:string, portraitUrl = "", sigilsArr: Array<Sigil> | null = null,evolvedCard = "",  id:string = "root") {
+    constructor(scene: Scene,presetKey:string, name: string, attack: string, HP: string, cost: CardCost,tribe:string, portraitUrl = "", sigilsArr: Array<Sigil> | null = null,evolvedCard = "", isSpawned=false, id:string = "root") {
         this.nameValue = name;
         this.#attack = attack;
         this._attack = attack;
         this.#hp = HP;
         this._hp = HP;
         this.#cost = cost;
+        this.#isSpawned = isSpawned;
         // this._cost = cost;
         this.isVisible = true;
+        if(id === "root") id = uuid();
         this.#id = id;
         this.#tribe = tribe;
         this.evolvedCard = evolvedCard;
+        this.#presetKey = presetKey;
 
         //Create base card mesh
         // let a = MeshBuilder.CreatePlane()
@@ -448,8 +476,9 @@ export class Card {
             throw new Error(`Unknown preset card: ${presetKey}`);
         }
 
-        return new Card(
+        const card = new Card(
             scene,
+            presetKey,
             preset.name,
             preset.attack,
             preset.hp,
@@ -458,8 +487,13 @@ export class Card {
             preset.portraitUrl,
             preset.sigilsArr,
             preset.evolvedCard,
-            id
+            preset.isSpawned,
+            id,
         );
+        if (typeof preset.onCreate === "function") {
+            preset.onCreate(card);
+        }
+        return card;
     }
 }
 
@@ -479,7 +513,7 @@ export class StoatCard extends Card {
 
 
     constructor(scene: Scene, name: string, attack: string, HP: string, cost: CardCost) {
-        super(scene, name, attack, HP, cost, CardTribe.CANINE);
+        super(scene,"STOAT", name, attack, HP, cost, CardTribe.CANINE);
         // let stoat_body = MeshBuilder.CreatePlane("stoat_body", {height: cardHeight, width: cardWidth});
         let stoat_body = MeshBuilder.CreatePlane("stoat_body", {
             height: 4.3742176294, // 直接将scaling乘入尺寸
@@ -654,7 +688,13 @@ export class StoatCard extends Card {
         this.stoat_body_texture.update();
     }
 }
-
+//
+// // 定义另一个类，SpawnedCard
+// export class SpawnedCard extends Card {
+//     constructor(scene: Scene, name: string, attack: string, HP: string, cost: CardCost,tribe:string, portraitUrl = "", sigilsArr: Array<Sigil> | null = null,evolvedCard = "",  id:string = "root") {
+//         super(scene, name, attack, HP, cost, tribe, portraitUrl, sigilsArr,evolvedCard, id);
+//     }
+// }
 
 // /root/graduation_project/html/static/images/cards/misc/card_slot_heightmap.png
 
