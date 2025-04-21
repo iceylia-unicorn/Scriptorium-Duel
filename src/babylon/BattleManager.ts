@@ -387,16 +387,34 @@ export class BattleManager {
         // init listener
         eventEmitter.on("receiveOpponentTurnOver", async (data: any) => {
                 data.cards.forEach((placement: { cardId: string, positionIndex: number,presetKey:string }) => {
+                    if(placement.positionIndex >= 4){ //当自己放置区出现变动的时候，这个时候只有一种可能就是猎犬。
+                        const index = placement.positionIndex - 4;
+                        for(let i = 0; i < 4; i++){
+                            if(i == index) continue;
+                            const card = DeckManager.placedCards[i];
+                            console.log(card?.id, placement.cardId);
+                            if(card?.id == placement.cardId){
+                                DeckManager.placedCards[i] = null;
+                                DeckManager.getSquirrelInstance().placeClawMark(card, index);
+                                return;
+                            }
+                        }
+                        return;
+                    }
                     placement.positionIndex += 4;
+                    console.log(DeckManager.opponentCards, placement.cardId);
                     // 找到对应的地方卡牌
-                    let card = DeckManager.opponentCards.find(c => c.id === placement.cardId);
+                    let card = DeckManager.opponentCards.find(c => c.id == placement.cardId);
                     // 找不到就说明是松鼠牌或者是衍生牌或者是进化牌。
-                    if (!card && placement.presetKey == CARD_NAMES.Squirrel) {
-                        card = DeckManager.opponentCards.find(c => c.tribe === CardTribe.SQUIRREL);
+                    if (!card) {
+                        if(placement.presetKey == CARD_NAMES.Squirrel){
+                            card = DeckManager.opponentCards.find(c => c.tribe === CardTribe.SQUIRREL);
+                        }
+                        else{
+                            card = DeckManager.getSpawnedCard(placement.presetKey);
+                        }
                     }
-                    else{
-                        card = DeckManager.getSpawnedCard(placement.presetKey);
-                    }
+
                     DeckManager.placedCards[placement.positionIndex]?.hide();
                     if (!card) {
                         card = Card.Create(globalBabylon.scene!, CARD_NAMES.Squirrel, uuid());

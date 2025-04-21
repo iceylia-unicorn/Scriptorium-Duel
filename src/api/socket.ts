@@ -45,7 +45,6 @@ export function initializeSocket():Promise<{event:string, data:string}> {
         })
         // 接收对方结束回合。
         socket.on('turnOver', (data:any) => {
-            console.log(data);
             eventEmitter.emit('receiveOpponentTurnOver', data);
         });
         resolve({event:"initial", data:"success"});

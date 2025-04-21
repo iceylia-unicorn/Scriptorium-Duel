@@ -70,7 +70,6 @@ export class DeckManager {
     static getPlacedCardIndex(card: Card): number {
         let res = -1;
         DeckManager.placedCards.forEach((instance:Card|null, index:number) => {
-            console.log(instance?.id, card.id);
             if(instance?.id == card.id){
                 res = index;
             }
@@ -590,7 +589,6 @@ export class DeckManager {
                                             const opCard = DeckManager.placedCards[i];
                                             if(opCard&&opCard.sigilsArr.has(ability_guarddog)){
                                                 this.placeClawMark(opCard, index+4);
-                                                console.log(DeckManager.placedCards);
                                                 DeckManager.placedCards[i] = null;
                                                 break;
                                             }
