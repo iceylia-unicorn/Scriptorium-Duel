@@ -124,10 +124,16 @@ export class BattleManager {
                 if(card.evolvedCard.length > 0) {
                     DeckManager.discardPile.push(card);
                     card.hide();
-                    const newCard = Card.Create(globalBabylon.scene!, card.evolvedCard);
+                    const newCard = Card.Create(globalBabylon.scene!, card.evolvedCard, card.id);//进化卡和普通卡共享id
                     DeckManager.getSquirrelInstance().placeClawMark(newCard,index);
                 }
+                else{
+                    card.hp += 2;
+                    card.attack += 1;
+                    card.setName(card.getName() + "长老");
+                }
             }
+
         }
         if(this.isMyturn) {
             //init2 init2->draw->play->myClick->resolve1->turn-> init1->opClick->resolve2->turn->init2
@@ -232,7 +238,7 @@ export class BattleManager {
                 // if (!attacker||!attacker.placedTurnCount) continue;
 
                 //对面卡牌地址
-                const opponentIndex = index + defenderOffset;
+                const opponentIndex = DeckManager.getClawOpponentIndex(index);
                 if (attacker.sigilsArr.has(ability_tristrike)) { //有三重打击时候
                     for (let i = Math.max(attackerIndices[0]+defenderOffset, opponentIndex - 1); i <= attackerIndices[3] + defenderOffset; i++) {
                         if (i > opponentIndex + 1) break;
@@ -306,6 +312,28 @@ export class BattleManager {
             case "resolve": //1.自己回合结束，2在initPhase等待时对方结束->resolve->initPhase
                 this.isMyturn = !this.isMyturn; // 直接切换回合归属
                 console.log("isMyturn被切换为"+this.isMyturn);
+                console.log("当前PlacedCards",DeckManager.placedCards);
+                const _placedCards = [...DeckManager.placedCards];
+                // // 获取卡牌对应位置的快照
+                // const _indexArr = _placedCards.map((card)=>{
+                //     if(!card) return -1;
+                //     return DeckManager.getPlacedCardIndex(card);
+                // })
+                // console.log(_indexArr);
+                if(!this.isMyturn){ //当自己回合结束时
+                    _placedCards.forEach((card: Card|null,index) => {
+                        if(index<4){
+                            card?.onTurnOverFuns.forEach(fun=>fun(index));
+                        }
+                    })
+                }
+                else{
+                    _placedCards.forEach((card: Card|null,index) => {
+                        if(index>=4){
+                            card?.onTurnOverFuns.forEach(fun=>fun(index));
+                        }
+                    })
+                }
                 this.turnCount++;
                 await this.initPhase(); // 无论谁的回合都重新初始化
                 break;
@@ -364,9 +392,8 @@ export class BattleManager {
 
                         message.info("回合结束");
 
-                        const placedCards = DeckManager.placedCards.map((item, index) =>
-                            item ? {positionIndex: index, cardId: item.id, presetKey:item.presetKey} : null)
-                            .filter(item => item !== null)
+                        const placedCards = DeckManager.placedCards.map((item) =>
+                            item ? {cardId: item.id, presetKey:item.presetKey} : {cardId:"",presetKey:""});
                         sendCardPlacement(placedCards);
 
                         await this.nextPhase();
@@ -386,13 +413,14 @@ export class BattleManager {
         this.setEnabled(false);
         // init listener
         eventEmitter.on("receiveOpponentTurnOver", async (data: any) => {
-                data.cards.forEach((placement: { cardId: string, positionIndex: number,presetKey:string }) => {
-                    if(placement.positionIndex >= 4){ //当自己放置区出现变动的时候，这个时候只有一种可能就是猎犬。
-                        const index = placement.positionIndex - 4;
+                console.log("接收数据：",data);
+                data.cards.forEach((placement: { cardId: string,presetKey:string },preIndex:number) => {
+
+                    if(preIndex >= 4){ //当自己放置区出现变动的时候，这个时候只有一种可能就是猎犬。
+                        const index = preIndex -4;
                         for(let i = 0; i < 4; i++){
                             if(i == index) continue;
                             const card = DeckManager.placedCards[i];
-                            console.log(card?.id, placement.cardId);
                             if(card?.id == placement.cardId){
                                 DeckManager.placedCards[i] = null;
                                 DeckManager.getSquirrelInstance().placeClawMark(card, index);
@@ -401,27 +429,39 @@ export class BattleManager {
                         }
                         return;
                     }
-                    placement.positionIndex += 4;
-                    console.log(DeckManager.opponentCards, placement.cardId);
+                    const index = preIndex + 4;
+                    //删
+                    if(placement.cardId.length<=0){
+                        DeckManager.placedCards[index]?.hide();
+                        DeckManager.placedCards[index]?.resetAttribute();
+                        DeckManager.placedCards[index] = null;
+                        return;
+                    }//不变
+                    else if(placement.cardId === DeckManager.placedCards[index]?.id){
+                        return;
+                    }
+                    //增
                     // 找到对应的地方卡牌
                     let card = DeckManager.opponentCards.find(c => c.id == placement.cardId);
                     // 找不到就说明是松鼠牌或者是衍生牌或者是进化牌。
                     if (!card) {
                         if(placement.presetKey == CARD_NAMES.Squirrel){
                             card = DeckManager.opponentCards.find(c => c.tribe === CardTribe.SQUIRREL);
+
                         }
                         else{
                             card = DeckManager.getSpawnedCard(placement.presetKey);
                         }
                     }
-
-                    DeckManager.placedCards[placement.positionIndex]?.hide();
+                    DeckManager.placedCards[index]?.hide();
+                    DeckManager.placedCards[index]?.resetAttribute();
+                    // 卡组中松鼠牌不够，直接添加
                     if (!card) {
                         card = Card.Create(globalBabylon.scene!, CARD_NAMES.Squirrel, uuid());
+                        DeckManager.opponentCards.push(card);
                     }
-                    DeckManager.getSquirrelInstance().placeClawMark(card,placement.positionIndex);
-                    DeckManager.opponentCards.push(card);
-                    DeckManager.placedCards[placement.positionIndex] = card;
+                    DeckManager.getSquirrelInstance().placeClawMark(card,index);
+                    DeckManager.placedCards[index] = card;
 
                 });
                 await this.resolvePhase();

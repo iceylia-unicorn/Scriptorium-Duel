@@ -76,6 +76,14 @@ export class DeckManager {
         })
         return res;
     }
+
+    /**
+     * 获取正对面卡牌位置
+     * @param index 己方位置
+     */
+    static getClawOpponentIndex(index:number): number {
+        return DeckManager.placedCards.length - index - 1;
+    }
     //是否开启卡牌放置
     static cardPlaceActionState = true;
     //抽卡阶段所能抽取数
@@ -582,13 +590,14 @@ export class DeckManager {
                                     const card = DeckManager.currentCard;
                                     this.removeActionTriggers(card);
                                     this.placeClawMark(card, index);
+                                    const opponentIndex = DeckManager.getClawOpponentIndex(index);
                                     //判断对方是否有守卫者印记
-                                    if(!DeckManager.placedCards[index+4]){
+                                    if(!DeckManager.placedCards[opponentIndex]){
                                         for(let i = 4; i <8; i++){
-                                            if(i==index+4) continue;
+                                            if(i==opponentIndex) continue;
                                             const opCard = DeckManager.placedCards[i];
                                             if(opCard&&opCard.sigilsArr.has(ability_guarddog)){
-                                                this.placeClawMark(opCard, index+4);
+                                                this.placeClawMark(opCard, opponentIndex);
                                                 DeckManager.placedCards[i] = null;
                                                 break;
                                             }

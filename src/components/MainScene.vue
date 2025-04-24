@@ -13,7 +13,6 @@ import {gameState} from "../babylon/gameState.ts"
 import {BattleManager} from "../babylon/BattleManager.ts";
 import {TableManager} from "../babylon/TableManager.ts";
 import {disposeMessageSystem, initGUIMessageSystem, showGUIText} from "../babylon/GUIMessageSystem.ts";
-import {ability_tristrike} from "../babylon/Card-database.ts";
 const bjsCanvas = ref<HTMLCanvasElement | null>(null);
 onBeforeMount(() => {
   if (globalBabylon.scene) {
@@ -136,8 +135,6 @@ onMounted(async () => {
       CameraManager.getInstance().switchViewStatus(VIEWSTATUS.default);
       await new Promise(resolve => {setTimeout(resolve, 1000);});
       await battleManager.pendingPhase();
-      ability_tristrike.addFun(selfCards[0]);
-
     }
     globalBabylon.canvas = bjsCanvas.value;
     await createScene(globalBabylon.canvas);

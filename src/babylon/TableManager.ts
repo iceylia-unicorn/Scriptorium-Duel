@@ -144,11 +144,11 @@ export class TableManager {
             new Vector3(-0.5 * (cardWidth + spacing), -0.5 * (cardHeight + spacing), 0),
             new Vector3(0.5 * (cardWidth + spacing), -0.5 * (cardHeight + spacing), 0),
             new Vector3(1.5 * (cardWidth + spacing), -0.5 * (cardHeight + spacing), 0),
-            // Player's claw marks
-            new Vector3(-1.5 * (cardWidth + spacing), 0.5 * (cardHeight + spacing), 0),
-            new Vector3(-0.5 * (cardWidth + spacing), 0.5 * (cardHeight + spacing), 0),
-            new Vector3(0.5 * (cardWidth + spacing), 0.5 * (cardHeight + spacing), 0),
+            // Player's claw marks (reversed)
             new Vector3(1.5 * (cardWidth + spacing), 0.5 * (cardHeight + spacing), 0),
+            new Vector3(0.5 * (cardWidth + spacing), 0.5 * (cardHeight + spacing), 0),
+            new Vector3(-0.5 * (cardWidth + spacing), 0.5 * (cardHeight + spacing), 0),
+            new Vector3(-1.5 * (cardWidth + spacing), 0.5 * (cardHeight + spacing), 0),
         ];
 
         // Load the texture

@@ -95,6 +95,7 @@ export class Card {
 
         })
     }]; //献祭后的回调
+    onTurnOverFuns:Array<Function> = []
     /**已放置的回合数，第一次召唤不能攻击*/
     placedTurnCount = 0;
 
@@ -124,8 +125,8 @@ export class Card {
     get attack():number {
         return parseInt(this.#attack);
     }
-    set attack(value:string) {
-        this.#attack = value;
+    set attack(value:number) {
+        this.#attack = value.toString();
         this.cardAttackTexture.clear();
         this.cardHPTexture.drawText(this.#attack, null, null, "bold 300px monospace", "black", "transparent", true, true);//assign null to positon cause center position.
     }
@@ -400,11 +401,11 @@ export class Card {
 
         let sigilMat = new StandardMaterial("sigilMat");
         sigilMat.useAlphaFromDiffuseTexture = true;
-        // sigilMat.diffuseColor = Color3.White();
         let sigilTexture = new DynamicTexture("sigilTexture", {width: 50, height: 50});
         sigilTexture.hasAlpha = true;
         sigilMat.diffuseTexture = sigilTexture;
         sigilMat.specularColor = Color3.Black();
+        sigilMat.backFaceCulling = false;
         sigilMesh.material = sigilMat;
 
         let curSigilNum = this.curSigilNum++;
@@ -463,7 +464,7 @@ export class Card {
             sigilMat.emissiveTexture = sigilEmissiveTexture;
         }
         sigilTexture.update();
-        return;
+        return sigilMesh;
     }
 
     // 使用卡牌数据创建卡牌的通用工厂方法

@@ -92,7 +92,8 @@ export const sendInitDeck = (cards: Array<{ name: CARD_NAMES, id: string }>) => 
 export function provideEventEmitter(app:App) {
     app.provide('eventEmitter', eventEmitter);
 }
-export const sendCardPlacement = (cards: Array<{cardId: string, positionIndex: number}>) => {
+// 回合结束发送卡牌
+export const sendCardPlacement = (cards: Array<{cardId: string, presetKey:string}>) => {
     const socket = getSocket();
     socket.emit('turnOver', cards);
 }
