@@ -5,10 +5,14 @@ import { globalBabylon } from "./globals";
 
 class MessageQueue {
     private static instance: MessageQueue;
-    private messages: string[] = [];
+    private messages: Array<{
+        message: string;
+        callback?: () => void;
+        resolve: () => void; // 新增：用于Promise的resolve函数
+    }> = []; // 修改消息队列结构
     private isShowing = false;
     private textBlock: TextBlock;
-
+    // 在类中添加回调类型定义
     private constructor(textBlock: TextBlock) {
         this.textBlock = textBlock;
         this.textBlock.isVisible = false;
@@ -73,20 +77,29 @@ class MessageQueue {
         return this.instance;
     }
 
-    public addMessage(message: string): void {
-        this.messages.push(message);
-        if (!this.isShowing) this.showNext();
+    // 修改addMessage方法，返回Promise
+    public addMessage(message: string, callback?: () => void): Promise<void> {
+        return new Promise((resolve) => {
+            this.messages.push({ message, callback, resolve }); // 将resolve存入队列
+            if (!this.isShowing) this.showNext();
+        });
     }
 
+    // 修改showNext方法执行回调
     private async showNext(): Promise<void> {
         if (this.messages.length === 0) return;
 
         this.isShowing = true;
-        this.textBlock.text = this.messages.shift()!;
+        const current = this.messages.shift()!; // 取出包含resolve的对象
+        this.textBlock.text = current.message;
 
         await this.animateOpacity(0, 1, 500);
         await new Promise(resolve => setTimeout(resolve, 2000));
         await this.animateOpacity(1, 0, 500);
+
+        // 执行回调并resolve
+        if (current.callback) current.callback();
+        current.resolve();
 
         this.isShowing = false;
         this.showNext();
@@ -100,7 +113,8 @@ class MessageQueue {
 
 // 导出便捷方法
 export const initGUIMessageSystem = (scene: Scene) => MessageQueue.initialize(scene);
-export const showGUIText = (text: string) => MessageQueue.getInstance().addMessage(text);
+export const showGUIText = (text: string, callback?: () => void) =>
+    MessageQueue.getInstance().addMessage(text, callback); // 直接返回Promise
 export const disposeMessageSystem = () => {
     if (MessageQueue.getInstance()) {
         MessageQueue.getInstance().dispose();
