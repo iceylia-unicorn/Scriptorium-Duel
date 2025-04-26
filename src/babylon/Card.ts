@@ -44,7 +44,7 @@ export class Card {
     public evolvedCard: string;
     readonly #presetKey: string;
     //**是否为衍生牌*/
-    readonly #isSpawned: boolean;
+    #isSpawned: boolean;
     get presetKey(): string {
         return this.#presetKey;
     }
@@ -57,6 +57,9 @@ export class Card {
     //**是否为衍生牌*/
     get isSpawned(){
         return this.#isSpawned;
+    }
+    set isSpawned(value: boolean) {
+        this.#isSpawned = value;
     }
     rootNode: TransformNode;
     static zIndex1 = -0.051;
@@ -85,17 +88,14 @@ export class Card {
     beAttackedFuns = []; // 被攻击时的回调函数
     onSacrificeFuns = [()=>{
         this.hide();
+        this.resetAttribute();
         DeckManager.currentSacrificeCount++;
-        DeckManager.placedCards.forEach((item,index)=>{
-            if(index< 4 && item){
-                if(item.id == this.id){
-                    DeckManager.placedCards[index] = null;
-                }
-            }
-
-        })
+        const index = DeckManager.getPlacedCardIndex(this);
+        DeckManager.placedCards[index] = null;
     }]; //献祭后的回调
-    onTurnOverFuns:Array<Function> = []
+    onTurnOverFuns:Array<Function> = [];
+    /**被攻击时的回调*/
+    onHitFuns:Array<Function> = [];
     /**已放置的回合数，第一次召唤不能攻击*/
     placedTurnCount = 0;
 

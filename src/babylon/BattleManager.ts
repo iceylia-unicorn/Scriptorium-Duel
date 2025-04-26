@@ -10,15 +10,16 @@ import {globalBabylon} from "./globals.ts";
 import message from "../utils/message.ts";
 import {TableManager} from "./TableManager.ts";
 import {DeckManager} from "./DeckManager.ts";
-import {showGUIText} from "./GUIMessageSystem.ts";
+// import {showGUIText} from "./GUIMessageSystem.ts";
+import MessageQueue  from "./GUIMessageSystem.ts";
 import {eventEmitter, sendCardPlacement} from "../api/socket.ts";
 import {gameState} from "./gameState.ts";
 import {
     ability_evolve_1,
     ability_flying,
-    ability_reach,
+    ability_reach, ability_splitstrike,
     ability_submerge,
-    ability_tristrike,
+    ability_triStrike,
     CARD_NAMES
 } from "./Card-database.ts";
 import {Card} from "./Card.ts";
@@ -108,6 +109,7 @@ export class BattleManager {
             }, DeckManager.drawCardsInterval + 1000);
         }, 3 * DeckManager.drawCardsInterval + 1000);
     }
+
     // 新回合初始化
     private async initPhase() {
         this.phase = "init";
@@ -117,17 +119,20 @@ export class BattleManager {
          * @param card 需要变化的卡牌
          * @param index 卡牌对应放置位置
          */
-        const nextTurnFun = (card:Card,index:number) =>{
+        const nextTurnFun = (card: Card, index: number) => {
             card.placedTurnCount++;
-            if(card.sigilsArr.has(ability_evolve_1)){
-                //todo设计转换动画
-                if(card.evolvedCard.length > 0) {
+            if (card.sigilsArr.has(ability_evolve_1)) {
+                //todo设计转换动画 进化卡牌的失败
+                if (card.evolvedCard.length > 0) {
                     DeckManager.discardPile.push(card);
                     card.hide();
+                    const _preHP = card.hp;
+                    card.resetAttribute();
                     const newCard = Card.Create(globalBabylon.scene!, card.evolvedCard, card.id);//进化卡和普通卡共享id
-                    DeckManager.getSquirrelInstance().placeClawMark(newCard,index);
-                }
-                else{
+                    newCard.hp -= card.hp - _preHP; //继承减少的hp
+
+                    DeckManager.getSquirrelInstance().placeClawMark(newCard, index);
+                } else {
                     card.hp += 2;
                     card.attack += 1;
                     card.setName(card.getName() + "长老");
@@ -135,22 +140,21 @@ export class BattleManager {
             }
 
         }
-        if(this.isMyturn) {
+        if (this.isMyturn) {
             //init2 init2->draw->play->myClick->resolve1->turn-> init1->opClick->resolve2->turn->init2
             // 敌方 pending->init1->opClick->resolve2->turn->init2
-            DeckManager.placedCards.forEach((card,index) => {
-                if(index<4 && card){
-                    nextTurnFun(card,index);
+            DeckManager.placedCards.forEach((card, index) => {
+                if (index < 4 && card) {
+                    nextTurnFun(card, index);
                 }
             })
-            showGUIText("现在是你的回合")
+            MessageQueue.getInstance().showMessage("现在是你的回合")
             await this.nextPhase();
-        }
-        else{
+        } else {
             //init1
-            DeckManager.placedCards.forEach((card,index) => {
-                if(index>=4 && card){
-                    nextTurnFun(card,index);
+            DeckManager.placedCards.forEach((card, index) => {
+                if (index >= 4 && card) {
+                    nextTurnFun(card, index);
                 }
             })
         }
@@ -185,12 +189,14 @@ export class BattleManager {
     private async playPhase() {
         this.phase = "play";
         console.log("playPhase");
+
         DeckManager.playStatus = true;
 
     }
+
     private async resolvePhase() {
         this.phase = "resolve";
-        if(this.turnCount < 3){
+        if (this.turnCount < 3) {
             console.log("双方第一回合不攻击");
             await this.nextPhase();
             return;
@@ -201,28 +207,36 @@ export class BattleManager {
          * @param defender 防守方
          * @return 返回溢出伤害
          */
-        const combatResolve = async (attacker:Card, defender:Card|null):Promise<{ alphaHP:number,attackerAlive:boolean,defenderAlive:boolean}>=>{
+        const combatResolve = async (attacker: Card, defender: Card | null): Promise<{
+            alphaHP: number,
+            attackerAlive: boolean,
+            defenderAlive: boolean
+        }> => {
+            console.log("resolve运行", this.isMyturn);
             let alphaHP = 0;
             let attackerAlive = true;
             let defenderAlive = true;
-            if(!defender || defender.sigilsArr.has(ability_submerge)){
+            // 如果没有防御，或者对面是水生
+            if (!defender || defender.sigilsArr.has(ability_submerge)) {
                 alphaHP = attacker.attack;
             }
             //如果出现了飞行，并且还没有防御飞行的。
-            else if(attacker.sigilsArr.has(ability_flying) && !defender.sigilsArr.has(ability_reach)){
+            else if (attacker.sigilsArr.has(ability_flying) && !defender.sigilsArr.has(ability_reach)) {
                 alphaHP = attacker.attack;
-            }
-            else{
-                if(defender.hp <= attacker.attack){
+            } else {// 正常命中防御者
+                if (defender.hp <= attacker.attack) {
                     //过量伤害，防御者死亡
-                  alphaHP= attacker.attack- defender.hp;
-                  defender.hp = 0;
-                  defender.hide();
-                  defenderAlive= false;
-                  defender.resetAttribute();
-                }
-                else{
+                    alphaHP = attacker.attack - defender.hp;
+                    defender.hp = 0;
+                    defender.hide();
+                    defenderAlive = false;
+                    defender.resetAttribute();
+                } else {
                     defender.hp -= attacker.attack;
+                }
+                if(!this.isMyturn){
+                    console.log("进入onHitFuns运行");
+                    defender.onHitFuns.forEach(fun=>fun());
                 }
             }
             return new Promise(resolve => resolve({alphaHP, attackerAlive, defenderAlive}));
@@ -233,42 +247,62 @@ export class BattleManager {
 
             for (const index of attackerIndices) {
                 const attacker = DeckManager.placedCards[index];
-                if(!attacker) continue;
+                if (!attacker || attacker.attack <= 0) continue;
                 // 刚下的卡牌不能攻击
                 // if (!attacker||!attacker.placedTurnCount) continue;
 
                 //对面卡牌地址
                 const opponentIndex = DeckManager.getClawOpponentIndex(index);
-                if (attacker.sigilsArr.has(ability_tristrike)) { //有三重打击时候
-                    for (let i = Math.max(attackerIndices[0]+defenderOffset, opponentIndex - 1); i <= attackerIndices[3] + defenderOffset; i++) {
+                if (attacker.sigilsArr.has(ability_triStrike)) { //有三重打击时候
+                    for (let i = Math.max(attackerIndices[0] + defenderOffset, opponentIndex - 1); i <= attackerIndices[3] + defenderOffset; i++) {
                         if (i > opponentIndex + 1) break;
-                        const defender =DeckManager.placedCards[i];
-                        const {alphaHP,attackerAlive,defenderAlive} = await combatResolve(attacker,defender);
+                        const defender = DeckManager.placedCards[i];
+                        const {alphaHP, attackerAlive, defenderAlive} = await combatResolve(attacker, defender);
                         this.screenHP += this.isMyturn ? alphaHP : -alphaHP;
                         this.setBattleScreenHP(this.screenHP);
-                        if(!attackerAlive){
+                        if (!attackerAlive) {
                             attacker.hide();
                             DeckManager.placedCards[index] = null;
                             DeckManager.discardPile.push(attacker);
+                            break;
                         }
-                        if(!defenderAlive&&defender){
+                        if (!defenderAlive && defender) {
                             defender.hide();
                             DeckManager.placedCards[i] = null;
                             DeckManager.discardPile.push(defender);
                         }
                     }
-                }
-                else{
-                    const defender =DeckManager.placedCards[opponentIndex];
-                    const {alphaHP,attackerAlive,defenderAlive} = await combatResolve(attacker, defender);
+                } else if (attacker.sigilsArr.has(ability_splitstrike)) {
+                    const targets = [opponentIndex - 1, opponentIndex + 1]; // 左右两侧目标
+                    for (let i of targets) {
+                        if (i < 0 || i >= DeckManager.placedCards.length) continue; // 确保索引合法
+                        const defender = DeckManager.placedCards[i];
+                        const {alphaHP, attackerAlive, defenderAlive} = await combatResolve(attacker, defender);
+                        this.screenHP += this.isMyturn ? alphaHP : -alphaHP;
+                        this.setBattleScreenHP(this.screenHP);
+                        if (!attackerAlive) {
+                            attacker.hide();
+                            DeckManager.placedCards[index] = null;
+                            DeckManager.discardPile.push(attacker);
+                            break; // 攻击者已死亡，退出循环
+                        }
+                        if (!defenderAlive && defender) {
+                            defender.hide();
+                            DeckManager.placedCards[i] = null;
+                            DeckManager.discardPile.push(defender);
+                        }
+                    }
+                } else {
+                    const defender = DeckManager.placedCards[opponentIndex];
+                    const {alphaHP, attackerAlive, defenderAlive} = await combatResolve(attacker, defender);
                     this.screenHP += this.isMyturn ? alphaHP : -alphaHP;
                     this.setBattleScreenHP(this.screenHP);
-                    if(!attackerAlive){
+                    if (!attackerAlive) {
                         attacker.hide();
                         DeckManager.placedCards[index] = null;
                         DeckManager.discardPile.push(attacker);
                     }
-                    if(!defenderAlive&&defender){
+                    if (!defenderAlive && defender) {
                         defender.hide();
                         DeckManager.placedCards[opponentIndex] = null;
                         DeckManager.discardPile.push(defender);
@@ -279,21 +313,22 @@ export class BattleManager {
             this.screenHP = Math.max(0, Math.min(10, this.screenHP));
             this.setBattleScreenHP(this.screenHP);
 
-            if (this.screenHP === 10) showGUIText("你赢了");
-            if (this.screenHP === 0) showGUIText("你输了");
+            if (this.screenHP === 10) MessageQueue.getInstance().showMessage("你赢了");
+            if (this.screenHP === 0) MessageQueue.getInstance().showMessage("你输了");
         };
 
         // 根据回合执行不同方向的攻击
         if (this.isMyturn) {
             //resovle1
-            await resolveCombat([0, 1, 2, 3], 4); // 己方攻击右侧
+            await resolveCombat([0, 1, 2, 3], 4); // 己方攻击
         } else {
             //resolve2
-            await resolveCombat([4, 5, 6, 7], -4); // 敌方攻击左侧
+            await resolveCombat([4, 5, 6, 7], -4); // 敌方攻击
         }
 
         await this.nextPhase(); // 确保无论如何都进入下一阶段
     }
+
     private async nextPhase() {
         switch (this.phase) {
             case "pending":
@@ -311,8 +346,8 @@ export class BattleManager {
                 break;
             case "resolve": //1.自己回合结束，2在initPhase等待时对方结束->resolve->initPhase
                 this.isMyturn = !this.isMyturn; // 直接切换回合归属
-                console.log("isMyturn被切换为"+this.isMyturn);
-                console.log("当前PlacedCards",DeckManager.placedCards);
+                console.log("isMyturn被切换为" + this.isMyturn);
+                console.log("当前PlacedCards", DeckManager.placedCards);
                 const _placedCards = [...DeckManager.placedCards];
                 // // 获取卡牌对应位置的快照
                 // const _indexArr = _placedCards.map((card)=>{
@@ -320,17 +355,16 @@ export class BattleManager {
                 //     return DeckManager.getPlacedCardIndex(card);
                 // })
                 // console.log(_indexArr);
-                if(!this.isMyturn){ //当自己回合结束时
-                    _placedCards.forEach((card: Card|null,index) => {
-                        if(index<4){
-                            card?.onTurnOverFuns.forEach(fun=>fun(index));
+                if (!this.isMyturn) { //当自己回合结束时
+                    _placedCards.forEach((card: Card | null, index) => {
+                        if (index < 4) {
+                            card?.onTurnOverFuns.forEach(fun => fun(index));
                         }
                     })
-                }
-                else{
-                    _placedCards.forEach((card: Card|null,index) => {
-                        if(index>=4){
-                            card?.onTurnOverFuns.forEach(fun=>fun(index));
+                } else {
+                    _placedCards.forEach((card: Card | null, index) => {
+                        if (index >= 4) {
+                            card?.onTurnOverFuns.forEach(fun => fun(index));
                         }
                     })
                 }
@@ -346,6 +380,7 @@ export class BattleManager {
      * @private
      */
     private setBattleScreenHP(value: number) {
+        value = Math.max(0, Math.min(value, 10));
         for (let i = 1; i <= value; i++) {
             this.battleHPScreenContainer.meshes[i].material = this.battleHPScreenContainer.materials[1];
         }
@@ -393,17 +428,17 @@ export class BattleManager {
                         message.info("回合结束");
 
                         const placedCards = DeckManager.placedCards.map((item) =>
-                            item ? {cardId: item.id, presetKey:item.presetKey} : {cardId:"",presetKey:""});
+                            item ? {cardId: item.id, presetKey: item.presetKey} : {cardId: "", presetKey: ""});
                         sendCardPlacement(placedCards);
 
                         await this.nextPhase();
                     } else {
-                        showGUIText("请先抽卡");
+                        MessageQueue.getInstance().showMessage("请先抽卡");
                     }
                 } else {
                     const now = Date.now();
                     if (now - this.lastGUITextTime > 2000) {
-                        showGUIText("现在是对方回合");
+                        MessageQueue.getInstance().showMessage("现在是对方回合");
                         this.lastGUITextTime = now;
                     }
                 }
@@ -413,15 +448,15 @@ export class BattleManager {
         this.setEnabled(false);
         // init listener
         eventEmitter.on("receiveOpponentTurnOver", async (data: any) => {
-                console.log("接收数据：",data);
-                data.cards.forEach((placement: { cardId: string,presetKey:string },preIndex:number) => {
+                console.log("接收数据：", data);
+                data.cards.forEach((placement: { cardId: string, presetKey: string }, preIndex: number) => {
 
-                    if(preIndex >= 4){ //当自己放置区出现变动的时候，这个时候只有一种可能就是猎犬。
-                        const index = preIndex -4;
-                        for(let i = 0; i < 4; i++){
-                            if(i == index) continue;
+                    if (preIndex >= 4) { //当自己放置区出现变动的时候，这个时候只有一种可能就是猎犬。
+                        const index = preIndex - 4;
+                        for (let i = 0; i < 4; i++) {
+                            if (i == index) continue;
                             const card = DeckManager.placedCards[i];
-                            if(card?.id == placement.cardId){
+                            if (card?.id == placement.cardId) {
                                 DeckManager.placedCards[i] = null;
                                 DeckManager.getSquirrelInstance().placeClawMark(card, index);
                                 return;
@@ -431,13 +466,13 @@ export class BattleManager {
                     }
                     const index = preIndex + 4;
                     //删
-                    if(placement.cardId.length<=0){
+                    if (placement.cardId.length <= 0) {
                         DeckManager.placedCards[index]?.hide();
                         DeckManager.placedCards[index]?.resetAttribute();
                         DeckManager.placedCards[index] = null;
                         return;
                     }//不变
-                    else if(placement.cardId === DeckManager.placedCards[index]?.id){
+                    else if (placement.cardId === DeckManager.placedCards[index]?.id) {
                         return;
                     }
                     //增
@@ -445,11 +480,10 @@ export class BattleManager {
                     let card = DeckManager.opponentCards.find(c => c.id == placement.cardId);
                     // 找不到就说明是松鼠牌或者是衍生牌或者是进化牌。
                     if (!card) {
-                        if(placement.presetKey == CARD_NAMES.Squirrel){
+                        if (placement.presetKey == CARD_NAMES.Squirrel) {
                             card = DeckManager.opponentCards.find(c => c.tribe === CardTribe.SQUIRREL);
 
-                        }
-                        else{
+                        } else {
                             card = DeckManager.getSpawnedCard(placement.presetKey);
                         }
                     }
@@ -460,7 +494,7 @@ export class BattleManager {
                         card = Card.Create(globalBabylon.scene!, CARD_NAMES.Squirrel, uuid());
                         DeckManager.opponentCards.push(card);
                     }
-                    DeckManager.getSquirrelInstance().placeClawMark(card,index);
+                    DeckManager.getSquirrelInstance().placeClawMark(card, index);
                     DeckManager.placedCards[index] = card;
 
                 });
@@ -468,6 +502,7 @@ export class BattleManager {
             }
         )
     }
+
     /**
      * 设置战斗场景是否启用
      */

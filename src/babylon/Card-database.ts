@@ -3,7 +3,7 @@ import {staticUrl} from "../api";
 import {Card} from "./Card.ts";
 import {DeckManager} from "./DeckManager.ts";
 import {globalBabylon} from "./globals.ts";
-import {type TransformNode,Animation,SineEase,Scalar,ElasticEase} from "@babylonjs/core";
+import {Animation, ElasticEase, Scalar, SineEase, type TransformNode} from "@babylonjs/core";
 
 
 export enum CARD_NAMES {
@@ -38,19 +38,46 @@ export enum CARD_NAMES {
     elkFawn = "ELKFAWN",
     /**麋鹿*/
     elk = "ELK",
+    /**叉角羚*/
+    pronghorn = "PRONGHORN",
+    // /**长身麋鹿*/
+    // longElk = "LONGELK",
+    /**黑山羊*/
+    blackGoat = "BLACKGOAT",
+    /**奇怪的幼虫*/
+    strangeLarva = "STRANLarva",
+    /**奇怪的蛹*/
+    strangePupa = "STRANGPUP",
+    /**天蛾人*/
+    mothMan = "MONTHMAN",
+    /**蜜蜂*/
+    bee = "BEE",
+    /**蜂窝*/
+    beehive = "BEEHIVE",
+
 }
 
 
+export const ability_splitstrike = {
+    name: "SplitStrike",
+    description: "会攻击两边",
+    addFun:(card: Card) =>{
+        card.sigilsArr.add(ability_splitstrike);
+        card.drawSigil(staticUrl + "images/cards/sigils/ability_splitstrike.png");
+
+    }
+}
+
 //
-export const ability_tristrike = {
-    name: "Tristrike",
+export const ability_triStrike = {
+    name: "TriStrike",
     description: "攻击时，会同时攻击三个方向。",
     addFun: (card: Card) => {
         // 添加功能
         card.strikeFuns.push(() => {
             console.log("此时攻击三个方向");
         });
-        card.sigilsArr.add(ability_tristrike);
+        card.sigilsArr.add(ability_triStrike);
         // 添加图标
         card.drawSigil(staticUrl + "images/cards/sigils/ability_tristrike.png");
 
@@ -152,12 +179,12 @@ export const ability_evolve_1 = {
         card.sigilsArr.add(ability_evolve_1);
     }
 }
-export const ability_guarddog = {
+export const ability_guardDog = {
     name: "guarddog",
     description: "当对方放置卡牌且对位有空位时，卡牌将移动到那个空位进行守卫",
     addFun: (card: Card) => {
         card.drawSigil(staticUrl + "images/cards/sigils/ability_guarddog.png");
-        card.sigilsArr.add(ability_guarddog);
+        card.sigilsArr.add(ability_guardDog);
     }
 }
 export const ability_sacrificial = {
@@ -169,6 +196,43 @@ export const ability_sacrificial = {
         card.onSacrificeFuns[0] = () => {
             DeckManager.currentSacrificeCount++;
         }
+    }
+}
+export const ability_deathTouch = {
+    name: "deathtouch",
+    description: "造物被命中将直接死亡",
+    addFun: (card: Card) => {
+        card.drawSigil(staticUrl + "images/cards/sigils/ability_deathtouch.png");
+        card.sigilsArr.add(ability_deathTouch);
+
+    }
+}
+export const ability_tripleBlood = {
+    name: "tripleBlood",
+    description: "献祭时相当于三个祭品",
+    addFun: (card: Card) => {
+        card.drawSigil(staticUrl + "images/cards/sigils/ability_tripleblood.png");
+        card.sigilsArr.add(ability_tripleBlood);
+        card.onSacrificeFuns[0] = () => {
+            card.hide();
+            card.resetAttribute();
+            DeckManager.currentSacrificeCount+=3;
+            const index = DeckManager.getPlacedCardIndex(card);
+            DeckManager.placedCards[index] = null;
+        }
+    }
+}
+export const ability_beesOnHit = {
+    name: "beesOnHit",
+    description: "受伤时将新增蜜蜂卡牌到手牌中",
+    addFun: (card: Card) => {
+        card.onHitFuns.push(()=>{
+            const newCard = Card.Create(globalBabylon.scene!, CARD_NAMES.bee);
+            newCard.isSpawned = true;
+            DeckManager.addHandCard(newCard);
+        })
+        card.drawSigil(staticUrl + "images/cards/sigils/ability_beesonhit.png");
+        card.sigilsArr.add(ability_beesOnHit);
     }
 }
 
@@ -240,7 +304,7 @@ export const PRESET_CARDS: { [key: string]: CardData } = {
         portraitUrl: `${staticUrl}images/cards/portraits/portrait_mantisgod.png`,
         tribe: CardTribe.INSECT,
         rarity: CardRarity.RARE,
-        sigilsArr: [ability_tristrike]
+        sigilsArr: [ability_triStrike]
     },
     [CARD_NAMES.ravenEgg]: {
         name: "渡鸦蛋",
@@ -292,7 +356,7 @@ export const PRESET_CARDS: { [key: string]: CardData } = {
         portraitUrl: `${staticUrl}images/cards/portraits/portrait_bloodhound.png`,
         tribe: CardTribe.CANINE,
         rarity: CardRarity.COMMON,
-        sigilsArr: [ability_guarddog]
+        sigilsArr: [ability_guardDog]
     },
     [CARD_NAMES.jerseyDevilSleeping]: {
         name: "13号孩子",
@@ -303,7 +367,6 @@ export const PRESET_CARDS: { [key: string]: CardData } = {
         tribe: CardTribe.HOOVED,
         rarity: CardRarity.RARE,
         sigilsArr: [ability_sacrificial],
-        isSpawned: true,
         onCreate: (card) => {
             card.onSacrificeFuns.push(() => {
                 const index = DeckManager.getPlacedCardIndex(card);
@@ -330,6 +393,7 @@ export const PRESET_CARDS: { [key: string]: CardData } = {
         portraitUrl: `${staticUrl}images/cards/portraits/portrait_jerseydevil.png`,
         tribe: CardTribe.HOOVED,
         rarity: CardRarity.RARE,
+        isSpawned: true,
         sigilsArr: [ability_sacrificial, ability_flying],
         onCreate: (card) => {
             card.onSacrificeFuns.push(() => {
@@ -341,8 +405,6 @@ export const PRESET_CARDS: { [key: string]: CardData } = {
                 }
                 let temp = DeckManager.tempPlacedCards[index];
                 if (index == -1) return;
-                console.log(card);
-
                 DeckManager.tempPlacedCards[index] = DeckManager.placedCards[index];
                 DeckManager.tempPlacedCards[index]!.hide();
                 DeckManager.getSquirrelInstance().placeClawMark(temp, index);
@@ -370,6 +432,80 @@ export const PRESET_CARDS: { [key: string]: CardData } = {
         tribe: CardTribe.HOOVED,
         rarity: CardRarity.COMMON,
         sigilsArr: [ability_strafe]
+    },
+    [CARD_NAMES.pronghorn]: {
+        name: "叉角羚",
+        attack: "1",
+        hp: "3",
+        cost: "2",
+        portraitUrl: `${staticUrl}images/cards/portraits/portrait_pronghorn.png`,
+        tribe: CardTribe.HOOVED,
+        rarity: CardRarity.COMMON,
+        sigilsArr: [ability_strafe, ability_splitstrike]
+    },
+    [CARD_NAMES.blackGoat]: {
+        name: "黑山羊",
+        attack: "0",
+        hp: "1",
+        cost: "1",
+        portraitUrl: `${staticUrl}images/cards/portraits/portrait_goat.png`,
+        tribe: CardTribe.HOOVED,
+        rarity: CardRarity.COMMON,
+        sigilsArr: [ability_tripleBlood]
+    },
+    [CARD_NAMES.strangeLarva]:{
+        name:"奇怪的幼虫",
+        attack: "0",
+        hp: "3",
+        cost: "1",
+        portraitUrl: `${staticUrl}images/cards/portraits/portrait_mothman_1.png`,
+        tribe: CardTribe.INSECT,
+        rarity: CardRarity.RARE,
+        sigilsArr: [ability_evolve_1],
+        evolvedCard: CARD_NAMES.strangePupa
+    },
+    [CARD_NAMES.strangePupa]:{
+        name: "奇怪的蛹",
+        attack: "0",
+        hp: "3",
+        cost: "1",
+        isSpawned: true,
+        portraitUrl: `${staticUrl}images/cards/portraits/portrait_mothman_2.png`,
+        tribe: CardTribe.INSECT,
+        rarity: CardRarity.RARE,
+        sigilsArr: [ability_evolve_1],
+        evolvedCard: CARD_NAMES.mothMan
+    },
+    [CARD_NAMES.mothMan]:{
+        name: "天蛾人",
+        attack: "7",
+        hp: "3",
+        cost: "1",
+        isSpawned: true,
+        portraitUrl: `${staticUrl}images/cards/portraits/portrait_mothman_3.png`,
+        tribe: CardTribe.INSECT,
+        rarity: CardRarity.RARE,
+        sigilsArr: [ability_flying],
+    },
+    [CARD_NAMES.bee]:{
+        name: "蜜蜂",
+        attack: "1",
+        hp: "1",
+        cost: "0",
+        portraitUrl: `${staticUrl}images/cards/portraits/portrait_bee.png`,
+        tribe: CardTribe.INSECT,
+        rarity: CardRarity.COMMON,
+        sigilsArr: [ability_flying],
+    },
+    [CARD_NAMES.beehive]:{
+        name: "蜂窝",
+        attack: "0",
+        hp: "2",
+        cost: "1",
+        portraitUrl: `${staticUrl}images/cards/portraits/portrait_beehive.png`,
+        tribe: CardTribe.INSECT,
+        rarity: CardRarity.COMMON,
+        sigilsArr: [ability_beesOnHit],
     }
 }
 // 卡牌分类索引
