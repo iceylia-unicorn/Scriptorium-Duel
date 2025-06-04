@@ -1,4 +1,5 @@
 import {
+    Color3,
     Mesh,
     MeshBuilder,
     PBRMaterial,
@@ -13,20 +14,23 @@ import {staticUrl} from "../api";
 import type {Card} from "./Card.ts";
 import {CameraManager, VIEWSTATUS} from "./CameraManager.ts";
 
-export class TableManager {
-    private static instance:TableManager;
 
-    private readonly table: Mesh;
+export class TableManager {
+    private static instance: TableManager;
+
+    public table: Mesh;
     private readonly _scene: Scene;
     public clawTransformNode: TransformNode;
     private isBattleFiledEnable: boolean = true;
     static readonly zlevel1 = -0.51;
+
     // create instance under singleton pattern.
     public static reset() {
         if (TableManager.instance) {
             TableManager.instance = null!;
         }
     }
+
     public static getInstance(): TableManager {
         if (!TableManager.instance) {
             // create instance after babylon init.
@@ -37,6 +41,7 @@ export class TableManager {
         }
         return TableManager.instance;
     }
+
     private constructor() {
         this._scene = globalBabylon.scene!;
         this.table = this.createTableMesh();
@@ -52,6 +57,7 @@ export class TableManager {
             width: 40,
             height: 40,
         })
+        table.receiveShadows = true;
         const pbrMaterial = new PBRMaterial("pbrTableMaterial", this._scene);
         pbrMaterial.albedoTexture = new Texture(staticUrl + "images/models/table/Poliigon_WoodVeneerOak_7760_BaseColor.jpg", this._scene); // 漫反射纹理
         pbrMaterial.metallicTexture = new Texture(staticUrl + "images/models/table/Poliigon_WoodVeneerOak_7760_Metallic.jpg")
@@ -63,17 +69,17 @@ export class TableManager {
 
     // show or hide battlefield
     public setBattleFiledEnabled(isEnable: boolean) {
-        if(isEnable === this.isBattleFiledEnable) return; //if no change, return.
+        if (isEnable === this.isBattleFiledEnable) return; //if no change, return.
         this.isBattleFiledEnable = isEnable;
-        if(isEnable){ //choose to show
+        if (isEnable) { //choose to show
             this.clawTransformNode.setEnabled(true);
-        }
-        else{
+        } else {
             this.clawTransformNode.setEnabled(false);
         }
     }
+
     // 卡牌展示布局。
-    public layoutCardsGrid(cards: Card[], options?: {
+    public async layoutCardsGrid(cards: Card[], options?: {
         maxPerRow?: number,
         horizontalSpacing?: number,
         verticalSpacing?: number
@@ -90,8 +96,9 @@ export class TableManager {
 
         // 以桌子中心为基准点
         const tableCenter = new Vector3(0, 3, 0);
+        CameraManager.getInstance().switchViewStatus(VIEWSTATUS.overlook);
 
-        cards.forEach((card, index) => {
+        for (const [index, card] of cards.entries()) {
             // 计算行列位置
             const row = Math.floor(index / config.maxPerRow);
             const col = index % config.maxPerRow;
@@ -117,17 +124,20 @@ export class TableManager {
             );
 
             // 设置卡牌位置和父级
-            card.show(this.table, position, new Vector3(0,0,0));
+            await card.show(this.table, position, new Vector3(0, 0, 0), {
+                fromPosition: position.add(new Vector3(0, 12, -10)),
+                duration: 20,
+            });
 
             // 重置旋转角度
             card.rootNode.rotation.z = 0;
 
             // 调整卡牌层级关系
             card.rootNode.position.z = TableManager.zlevel1 - 0.01 * row;
-        });
-        CameraManager.getInstance().switchViewStatus(VIEWSTATUS.overlook);
+        }
 
     }
+
     // battlefield mesh init
     private createBattlefield() {
         // Define the card width and height
@@ -159,6 +169,7 @@ export class TableManager {
         clawMaterial.diffuseTexture = clawTexture;
         clawMaterial.opacityTexture = clawTexture; // Assuming the texture has transparency
 
+        clawMaterial.specularColor = Color3.Black()
         // Create a transform node to control all claw marks
         const clawTransformNode = new TransformNode("clawTransformNode", this._scene);
 

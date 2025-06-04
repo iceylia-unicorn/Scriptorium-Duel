@@ -25,6 +25,8 @@ import {
 import {Card} from "./Card.ts";
 import {CardTribe} from "./Card-types.ts";
 import {v4 as uuid} from 'uuid';
+import {EventSystem} from "./EventSystem.ts";
+import {LightManager} from "./LightManager.ts";
 
 //todo 对于不同阶段的错误操作其实应该只有一个
 // 1. 抽卡时多抽 -> 每回合只能抽一张卡，不要贪心
@@ -76,8 +78,8 @@ export class BattleManager {
                 throw new Error("BattleManager 必须在场景初始化后使用！");
             }
             // 异步构造，先运行异步，再返回构造。
-            const bellContainer = await LoadAssetContainerAsync("models/bell9.glb", globalBabylon.scene!);
-            const battleHPScreenContainer = await LoadAssetContainerAsync("models/screen7.glb", globalBabylon.scene!);
+            const bellContainer = await LoadAssetContainerAsync("models/bell.glb", globalBabylon.scene!);
+            const battleHPScreenContainer = await LoadAssetContainerAsync("models/screen.glb", globalBabylon.scene!);
 
             BattleManager.instance = new BattleManager(bellContainer, battleHPScreenContainer);
 
@@ -310,11 +312,22 @@ export class BattleManager {
                 }
             }
             // 血量边界检查
+            const over = Math.max(0, this.screenHP - 10);
+            const under = Math.max(0, -this.screenHP);
             this.screenHP = Math.max(0, Math.min(10, this.screenHP));
             this.setBattleScreenHP(this.screenHP);
 
-            if (this.screenHP === 10) MessageQueue.getInstance().showMessage("你赢了");
-            if (this.screenHP === 0) MessageQueue.getInstance().showMessage("你输了");
+            if (this.screenHP === 10){
+                MessageQueue.getInstance().showMessage("你赢了")
+                gameState.opponentHP -= 10+over;
+                this.endPhase();
+            }
+
+            if (this.screenHP === 0){
+                MessageQueue.getInstance().showMessage("你输了")
+                gameState.selfHP -= 10+under;
+                this.endPhase();
+            }
         };
 
         // 根据回合执行不同方向的攻击
@@ -325,10 +338,8 @@ export class BattleManager {
             //resolve2
             await resolveCombat([4, 5, 6, 7], -4); // 敌方攻击
         }
-
         await this.nextPhase(); // 确保无论如何都进入下一阶段
     }
-
     private async nextPhase() {
         switch (this.phase) {
             case "pending":
@@ -373,7 +384,13 @@ export class BattleManager {
                 break;
         }
     }
+    //战斗结束
+    private async endPhase(){
+        this.setEnabled(false);
 
+        // BattleManager
+       await EventSystem.getInstance().showEvents(3);
+    }
     /**
      * 设置战斗屏幕血量
      * @param value 血量
@@ -394,27 +411,26 @@ export class BattleManager {
         this.turnOverAnimation.stop();
 
         this.battleHPScreenContainer = battleHPScreenContainer;
+        LightManager.getInstance().shadowGenerator.addShadowCaster(battleHPScreenContainer.meshes[0]);
+
 
         battleHPScreenContainer.addAllToScene();
         bellContainer.addAllToScene();
 
         //control model through root node.
         this.bellRootNode = bellContainer.meshes[0]; //meshes的第一个为__root__为了兼容glb模型与bjs的不同，比如坐标系就不一样。
+        LightManager.getInstance().shadowGenerator.addShadowCaster(this.bellRootNode);
         this.battleHPScreenNode = battleHPScreenContainer.meshes[0];
 
         this.bellRootNode.position = new Vector3(-12.424453735351562, 0.06219588592648506, -9.178736686706543)
         this.bellRootNode.scaling = new Vector3(1.5, 1.5, 1.5000000560643836);// (debugNode as BABYLON.Mesh)
-        this.bellRootNode.rotationQuaternion = new Quaternion(0, 0.9924006069826459, 0.12304891409710288, 0);// (debugNode as BABYLON.Mesh)
+
+        this.bellRootNode.rotationQuaternion = new Quaternion(0, 0.986762287811391, 0.16217332503599285, 0);// (debugNode as BABYLON.Mesh)
 
         this.battleHPScreenNode.position = new Vector3(-12.583903312683105, -1.4776843786239624, -1.1896189451217651);// (debugNode as BABYLON.Mesh)
         this.battleHPScreenNode.scaling = new Vector3(1, 1, 1);// (debugNode as BABYLON.Mesh)
 
         this.battleHPScreenNode.rotationQuaternion = new Quaternion(0.7688511885787377, -0.13172556173132488, 0.615049394599091, -0.1150237732424084)
-
-        //todo 如何获得container中的material
-        console.log(battleHPScreenContainer.materials[1]); //blue-1 red-2;
-        console.log(battleHPScreenContainer.meshes); // 1是第一个元素
-
 
         this.bellMesh = bellContainer.meshes[1];
         this.bellMesh.actionManager = new ActionManager(globalBabylon.scene);
@@ -448,10 +464,8 @@ export class BattleManager {
         this.setEnabled(false);
         // init listener
         eventEmitter.on("receiveOpponentTurnOver", async (data: any) => {
-                console.log("接收数据：", data);
                 data.cards.forEach((placement: { cardId: string, presetKey: string }, preIndex: number) => {
-
-                    if (preIndex >= 4) { //当自己放置区出现变动的时候，这个时候只有一种可能就是猎犬。
+                    if (preIndex >= 4) {
                         const index = preIndex - 4;
                         for (let i = 0; i < 4; i++) {
                             if (i == index) continue;
@@ -465,8 +479,7 @@ export class BattleManager {
                         return;
                     }
                     const index = preIndex + 4;
-                    //删
-                    if (placement.cardId.length <= 0) {
+                    if (placement.cardId.length <= 0) { //删
                         DeckManager.placedCards[index]?.hide();
                         DeckManager.placedCards[index]?.resetAttribute();
                         DeckManager.placedCards[index] = null;
@@ -476,7 +489,6 @@ export class BattleManager {
                         return;
                     }
                     //增
-                    // 找到对应的地方卡牌
                     let card = DeckManager.opponentCards.find(c => c.id == placement.cardId);
                     // 找不到就说明是松鼠牌或者是衍生牌或者是进化牌。
                     if (!card) {
@@ -514,12 +526,14 @@ export class BattleManager {
         if (isEnable) {
             //启用战斗场景
             this.bellMesh.setEnabled(true);
+            this.battleHPScreenNode.setEnabled(true);
             TableManager.getInstance().setBattleFiledEnabled(true);
             DeckManager.getCreatureInstance().setEnabled(true);
             DeckManager.getSquirrelInstance().setEnabled(true);
 
         } else {
             this.bellMesh.setEnabled(false);
+            this.battleHPScreenNode.setEnabled(false);
             TableManager.getInstance().setBattleFiledEnabled(false);
             DeckManager.getCreatureInstance().setEnabled(false);
             DeckManager.getSquirrelInstance().setEnabled(false);

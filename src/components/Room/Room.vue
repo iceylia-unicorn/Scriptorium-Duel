@@ -1,5 +1,5 @@
 <template>
-  <div class="flex-items-center m-20 p-10 bg-[#141A30]  rounded-2xl">
+  <div class="flex items-center m-20 p-10 bg-[#141A30]  rounded-2xl">
     <div v-if="roomStatus==='null'" class="space-y-4">
       <input type="text" placeholder="邀请码" v-model="roomId"
              class="block h-10 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
@@ -38,7 +38,6 @@ import {gameState} from "../../babylon/gameState.ts";
 import type {EventEmitter} from "events";
 import { useRouter } from "vue-router";
 
-
 const router = useRouter();
 
 let roomId = ref<string>("");
@@ -75,6 +74,7 @@ const handleJoinRoom = async (roomId: string) => {
 }
 
 const handleGameStarted = ()=>{
+  gameState.roomID = roomId.value;
   router.push("/mainscene");
   message.info("游戏开始");
 }

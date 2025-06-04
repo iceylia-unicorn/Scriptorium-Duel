@@ -5,7 +5,11 @@ export default defineConfig({
         presetWind3(), // 默认预设
         presetIcons({
             scale: 1.2,
-            warn: true
+            warn: true,
+            extraProperties:{
+                display: "inline-block",
+                'vertical-align': 'middle',
+            }
         })
     ]
 })

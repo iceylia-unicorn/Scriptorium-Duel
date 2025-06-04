@@ -20,12 +20,25 @@ export const gameState = reactive({
             id: uuid(),
         },
         {
-            name: CARD_NAMES.bloodhound,
+            name: CARD_NAMES.beehive,
+            id: uuid()
+        },
+        {
+            name: CARD_NAMES.Bullfrog,
+            id: uuid(),
+        },
+        {
+            name: CARD_NAMES.wolfCub,
+            id: uuid(),
+        },
+        {
+            name: CARD_NAMES.beehive,
             id: uuid()
         }
     ],
     opponentDeck: [],
     roomID: "",
+    golds:10,
     players: [],
     isOwner: false,
     drawPhaseCount: 1,//每回合抽卡数

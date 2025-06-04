@@ -1,8 +1,9 @@
 <template>
   <nav class="w-full flex flex-col flex-items-center c-gray">
     <div class="w-full h-20 flex flex-items-center text-xl">
-      <div @click=" NavigateTo('/room')" class=" w-1/7 p-12 decoration-none">
-        <span class="cursor-pointer">图标</span>
+      <div @click=" NavigateTo('/room')" class="flex flex-items-center w-1/7 p-12 h-1/1 decoration-none">
+        <img src="/logo.png" class="w-15 cursor-pointer object-contain" alt="">
+<!--        <span class="cursor-pointer">图标</span>-->
       </div>
       <div  class="w-6/7 p-1">
         <ul class="list-none flex space-x-12">

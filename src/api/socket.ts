@@ -47,6 +47,12 @@ export function initializeSocket():Promise<{event:string, data:string}> {
         socket.on('turnOver', (data:any) => {
             eventEmitter.emit('receiveOpponentTurnOver', data);
         });
+        socket.on('battleMessage', (data:any) => {
+            eventEmitter.emit('receiveMessage', {
+                ...data,
+                isOpponent: true
+            });
+        });
         resolve({event:"initial", data:"success"});
     })
 
@@ -97,3 +103,17 @@ export const sendCardPlacement = (cards: Array<{cardId: string, presetKey:string
     const socket = getSocket();
     socket.emit('turnOver', cards);
 }
+/**
+ * 消息发送
+ * @param content 发送内容
+ */
+export const sendBattleMessage = (content: string) => {
+    const socket = getSocket();
+    if(gameState.roomID === ""){
+        throw new Error("can not send message before room be created");
+    }
+    socket.emit('battleMessage', {
+        content,
+        timestamp: new Date().toISOString()
+    });
+};

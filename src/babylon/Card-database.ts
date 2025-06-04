@@ -244,7 +244,6 @@ export const PRESET_CARDS: { [key: string]: CardData } = {
         hp: "1",
         cost: "0",
         portraitUrl: `${staticUrl}images/cards/portraits/portrait_squirrel.png`,
-
         tribe: CardTribe.NULL,
         rarity: CardRarity.COMMON
     },
@@ -522,13 +521,14 @@ export const CARD_INDICES = {
 };
 // 遍历所有卡牌 初始化卡牌索引
 Object.entries(PRESET_CARDS).forEach(([cardKey, cardData]) => {
+    if(cardKey)
     // 添加到cost索引
     CARD_INDICES.byCost[cardData.cost].push(cardKey);
     if (cardData.tribe) {
         CARD_INDICES.byTribe[cardData.tribe] = CARD_INDICES.byTribe[cardData.tribe] || [];
         CARD_INDICES.byTribe[cardData.tribe].push(cardKey);
     }
-    if (cardData.rarity) {
+    if (cardData.rarity && cardKey !== CARD_NAMES.Squirrel && !cardData.isSpawned) {
         CARD_INDICES.byRarity[cardData.rarity] = CARD_INDICES.byRarity[cardData.rarity] || [];
         CARD_INDICES.byRarity[cardData.rarity].push(cardKey);
     }

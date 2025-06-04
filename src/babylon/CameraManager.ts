@@ -1,6 +1,6 @@
 import {Camera, Scene, UniversalCamera, Vector3} from "@babylonjs/core";
 import {DeckManager} from "./DeckManager.ts";
-import { globalBabylon } from "./globals"; // 导入全局状态
+import { globalBabylon } from "./globals";
 export enum VIEWSTATUS {
     // 初始战斗视角
     "default" = 0,
@@ -12,11 +12,13 @@ export enum VIEWSTATUS {
     "handCards" = 3,
     // 牌堆
     "deck" = 4,
+    //**神秘石**/
+    "mysteriousStone" = 5
 }
 
 export class CameraManager {
     private static instance: CameraManager; // 启用单例模式。
-    private battleDefaultCamera: UniversalCamera;
+    public battleDefaultCamera: UniversalCamera;
     private overlookCamera: UniversalCamera;
     private _scene: Scene;
     private _canvas: HTMLCanvasElement;
@@ -24,7 +26,8 @@ export class CameraManager {
     private keyHandler: (event: any) => void;
     private viewStatus: VIEWSTATUS = VIEWSTATUS.default;
     private readonly defaultTarget = new Vector3(-0.7421837071371951, 18.92943459100077, -18.71784432927812);
-
+    // 状态锁定
+    private statusLock = false;
     public unlockOverlook() {
         this.viewStatus = VIEWSTATUS.battleOverlook;
     }
@@ -50,9 +53,19 @@ export class CameraManager {
             case VIEWSTATUS.deck:
                 this._event_d();
                 break;
+            case VIEWSTATUS.mysteriousStone:
+                // this.statusLock = true;
+                CameraManager.getInstance().battleDefaultCamera.target = new Vector3(0.30691455196760886, -4.971132163527603, -3.4919508084319784);
+                CameraManager.getInstance().battleDefaultCamera.position = new Vector3(0, 15, -7);
+                CameraManager.getInstance().battleDefaultCamera.rotation = new Vector3(1.3962634015954636, 0.08726646259971647, 0.10471975511965977);
+
+                break;
             case VIEWSTATUS.default:
                 this.switchCamera(this.battleDefaultCamera);
+                this.statusLock = false;
+
                 break;
+
         }
     }
     private _event_w(){
@@ -121,7 +134,10 @@ export class CameraManager {
         this._scene.activeCamera = this.battleDefaultCamera;
 
         this.keyHandler = (event:any) => {
-            if(this.viewStatus === VIEWSTATUS.overlook) {
+            if (document.activeElement !== this._canvas) {
+                return;
+            }
+            if(this.viewStatus === VIEWSTATUS.overlook || this.statusLock) {
                 return
             }
             const key = event.key.toLowerCase();

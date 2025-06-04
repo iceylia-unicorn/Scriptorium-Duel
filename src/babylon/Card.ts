@@ -29,9 +29,9 @@ export class Card {
     private cardAttack: Mesh;
     private cardHP: Mesh;
     //id uuid
-    readonly #id:string;
+    readonly #id: string;
     //种族
-    readonly #tribe:string;
+    readonly #tribe: string;
     // cardCost: Mesh;
     //最前面的模板，触发点击事件
     topMask = MeshBuilder.CreatePlane("cardMask", {
@@ -45,22 +45,28 @@ export class Card {
     readonly #presetKey: string;
     //**是否为衍生牌*/
     #isSpawned: boolean;
+
     get presetKey(): string {
         return this.#presetKey;
     }
-    get id(){
+
+    get id() {
         return this.#id;
     }
-    get tribe(){
+
+    get tribe() {
         return this.#tribe
     }
+
     //**是否为衍生牌*/
-    get isSpawned(){
+    get isSpawned() {
         return this.#isSpawned;
     }
+
     set isSpawned(value: boolean) {
         this.#isSpawned = value;
     }
+
     rootNode: TransformNode;
     static zIndex1 = -0.051;
     static zIndex2 = -0.052;
@@ -69,9 +75,9 @@ export class Card {
 
     private nameValue: string;
     #attack: string;
-    private readonly _attack:string;
-    #hp:string;
-    private readonly _hp:string;
+    private readonly _attack: string;
+    #hp: string;
+    private readonly _hp: string;
     #cost: string;
 
     cardNameTexture: DynamicTexture;
@@ -82,20 +88,20 @@ export class Card {
 
     initSigilNum = 0; //初始印记数量
     curSigilNum = 0; //当前印记数量
-    sigilsArr: Set<Sigil> = new Set<Sigil>() ;//印记数组。
+    sigilsArr: Set<Sigil> = new Set<Sigil>();//印记数组。
     public playedFuns: Array<Function> | Array<null> = []; //被放置时的回调函数
     strikeFuns: Array<Function> = []; //攻击时的回调函数
     beAttackedFuns = []; // 被攻击时的回调函数
-    onSacrificeFuns = [()=>{
+    onSacrificeFuns = [() => {
         this.hide();
         this.resetAttribute();
         DeckManager.currentSacrificeCount++;
         const index = DeckManager.getPlacedCardIndex(this);
         DeckManager.placedCards[index] = null;
     }]; //献祭后的回调
-    onTurnOverFuns:Array<Function> = [];
+    onTurnOverFuns: Array<Function> = [];
     /**被攻击时的回调*/
-    onHitFuns:Array<Function> = [];
+    onHitFuns: Array<Function> = [];
     /**已放置的回合数，第一次召唤不能攻击*/
     placedTurnCount = 0;
 
@@ -105,85 +111,97 @@ export class Card {
         this.cardNameTexture.clear();
         this.cardNameTexture.drawText(this.nameValue, null, null, "bold 90px monospace", "gray", "transparent", true, true);//assign null to position cause center position.
     }
+
     public getName() {
         return this.nameValue;
     }
+
     set hp(value: number) {
         this.#hp = value.toString();
         this.cardHPTexture.clear();
         this.cardHPTexture.drawText(this.#hp, null, null, "bold 300px monospace", "black", "transparent", true, true);//assign null to positon cause center position.
     }
-    get hp(){
+
+    get hp() {
         return parseInt(this.#hp);
     }
+
     get cost(): number {
         return parseInt(this.#cost);
     }
+
     set cost(value: number) {
         this.#cost = value.toString();
     }
-    get attack():number {
+
+    get attack(): number {
         return parseInt(this.#attack);
     }
-    set attack(value:number) {
+
+    set attack(value: number) {
         this.#attack = value.toString();
         this.cardAttackTexture.clear();
         this.cardHPTexture.drawText(this.#attack, null, null, "bold 300px monospace", "black", "transparent", true, true);//assign null to positon cause center position.
     }
+
     //将属性重置
-    public resetAttribute(){
+    public resetAttribute() {
         this.#attack = this._attack;
         this.#hp = this._hp;
         this.placedTurnCount = 0;
         // this.cost = this._cost
     }
+
     // 修改后的Card类show方法
-    public show(
-        parent?: Mesh | TransformNode,
+    public async show(
+        parent?: Mesh | TransformNode | null,
         position?: Vector3,
         rotation?: Vector3,
         animationOptions?: {
             fromPosition?: Vector3;
             duration?: number;
         }
-    ): void {
-        // 基础位置设置
-        const targetPosition = position || Vector3.Zero();
-        const startPosition = animationOptions?.fromPosition || targetPosition;
+    ): Promise<void> {
+        return new Promise<void>((resolve) => {
+            // 基础位置设置
+            const targetPosition = position || Vector3.Zero();
+            const startPosition = animationOptions?.fromPosition || targetPosition;
 
-        // 直接设置初始位置
-        this.rootNode.position = startPosition.clone();
+            // 直接设置初始位置
+            this.rootNode.position = startPosition.clone();
 
-        if (parent) this.rootNode.parent = parent;
-        if (rotation) this.rootNode.rotation = rotation;
+            if (parent !== undefined) this.rootNode.parent = parent;
+            if (rotation) this.rootNode.rotation = rotation;
 
-        // 动画参数
-        const duration = animationOptions?.duration ?? 30; // 默认30帧
+            // 动画参数
+            const duration = animationOptions?.duration ?? 30; // 默认30帧
 
-        // 当需要动画时
-        if (animationOptions?.fromPosition) {
-            Animation.CreateAndStartAnimation(
-                "cardAppear",
-                this.rootNode,
-                "position",
-                60, // fps
-                duration,
-                startPosition,
-                targetPosition,
-                Animation.ANIMATIONLOOPMODE_CONSTANT,
-                undefined,
-                () => {
-                    // 动画结束后确保最终位置准确
-                    this.rootNode.position = targetPosition;
-                }
-            );
-        }
-
-        // 原有可见性逻辑
-        if (this.isVisible) return;
-        this.rootNode.setEnabled(true);
-        this.isVisible = true;
+            this.rootNode.setEnabled(true);
+            this.isVisible = true;
+            // 当需要动画时
+            if (animationOptions?.fromPosition) {
+                Animation.CreateAndStartAnimation(
+                    "cardAppear",
+                    this.rootNode,
+                    "position",
+                    60, // fps
+                    duration,
+                    startPosition,
+                    targetPosition,
+                    Animation.ANIMATIONLOOPMODE_CONSTANT,
+                    undefined,
+                    () => {
+                        // 动画结束后确保最终位置准确
+                        this.rootNode.position = targetPosition;
+                        resolve()
+                    }
+                );
+            } else {
+                resolve();
+            }
+        })
     }
+
     public hide(): void {
         if (!this.isVisible) return;
         this.rootNode.setEnabled(false);
@@ -197,7 +215,7 @@ export class Card {
         })
     }
 
-    constructor(scene: Scene,presetKey:string, name: string, attack: string, HP: string, cost: CardCost,tribe:string, portraitUrl = "", sigilsArr: Array<Sigil> | null = null,evolvedCard = "", isSpawned=false, id:string = "root") {
+    constructor(scene: Scene, presetKey: string, name: string, attack: string, HP: string, cost: CardCost, tribe: string, portraitUrl = "", sigilsArr: Array<Sigil> | null = null, evolvedCard = "", isSpawned = false, id: string = "root") {
         this.nameValue = name;
         this.#attack = attack;
         this._attack = attack;
@@ -207,7 +225,7 @@ export class Card {
         this.#isSpawned = isSpawned;
         // this._cost = cost;
         this.isVisible = true;
-        if(id === "root") id = uuid();
+        if (id === "root") id = uuid();
         this.#id = id;
         this.#tribe = tribe;
         this.evolvedCard = evolvedCard;
@@ -234,7 +252,7 @@ export class Card {
             width: cardWidth,
             height: cardHeight / 5
         }, scene);
-        this.rootNode = new TransformNode(name +"-" + id, scene, false);
+        this.rootNode = new TransformNode(name + "-" + id, scene, false);
         this.topMask.parent = this.rootNode;
 
         // Card components position
@@ -242,7 +260,6 @@ export class Card {
         this.cardAttack.parent = this.box;
         this.cardHP.parent = this.box;
         this.box.parent = this.rootNode;
-
 
 
         this.cardName.position.z = -cardDeep / 2 - 0.001;
@@ -496,6 +513,47 @@ export class Card {
         }
         return card;
     }
+
+    public destroy(): void {
+        // 销毁所有网格和材质
+        this.box.dispose();
+        this.cardName.dispose();
+        this.cardAttack.dispose();
+        this.cardHP.dispose();
+        this.topMask.dispose();
+        this.rootNode.dispose();
+
+        // 销毁动态纹理
+        this.cardNameTexture.dispose();
+        this.cardAttackTexture.dispose();
+        this.cardHPTexture.dispose();
+        this.maskTexture?.dispose();
+
+        // 清理材质引用
+        if (this.box.material) {
+            (this.box.material as StandardMaterial).dispose();
+        }
+
+        // 从父节点中移除
+        if (this.rootNode.parent) {
+            this.rootNode.setParent(null);
+        }
+
+        // 清理回调函数引用
+        this.playedFuns = [];
+        this.strikeFuns = [];
+        this.beAttackedFuns = [];
+        this.onSacrificeFuns = [];
+        this.onTurnOverFuns = [];
+        this.onHitFuns = [];
+
+        // 从DeckManager中移除引用
+        const index = DeckManager.getPlacedCardIndex(this);
+        if (index !== -1) {
+            DeckManager.placedCards[index] = null;
+        }
+    }
+
 }
 
 export class StoatCard extends Card {
@@ -514,7 +572,7 @@ export class StoatCard extends Card {
 
 
     constructor(scene: Scene, name: string, attack: string, HP: string, cost: CardCost) {
-        super(scene,"STOAT", name, attack, HP, cost, CardTribe.CANINE);
+        super(scene, "STOAT", name, attack, HP, cost, CardTribe.CANINE);
         // let stoat_body = MeshBuilder.CreatePlane("stoat_body", {height: cardHeight, width: cardWidth});
         let stoat_body = MeshBuilder.CreatePlane("stoat_body", {
             height: 4.3742176294, // 直接将scaling乘入尺寸
@@ -670,7 +728,13 @@ export class StoatCard extends Card {
         this.isTalkAnimating = true;
         this.talkAnimationFrameId = requestAnimationFrame(this.talkAnimate);
     }
-
+    public destroy(): void {
+        this.stopTalkAnimate();
+        if (this.stoat_body_texture) {
+            this.stoat_body_texture.dispose();
+        }
+        super.destroy();
+    }
     public stopTalkAnimate() {
 
         if (!this.isTalkAnimating) return; // 如果动画没有在播放，直接返回
@@ -689,6 +753,7 @@ export class StoatCard extends Card {
         this.stoat_body_texture.update();
     }
 }
+
 //
 // // 定义另一个类，SpawnedCard
 // export class SpawnedCard extends Card {
