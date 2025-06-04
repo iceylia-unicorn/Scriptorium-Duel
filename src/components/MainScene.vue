@@ -5,13 +5,8 @@ import "@babylonjs/loaders/glTF";
 import {onBeforeMount, onBeforeUnmount, onMounted, ref} from "vue";
 import {eventEmitter, sendInitDeck} from "../api/socket.ts";
 import {
-  ActionManager, Animation,
-  AssetContainer, Color3, DynamicTexture,
   Engine,
-  ExecuteCodeAction,
-  loadAssetContainerAsync, MeshBuilder, Quaternion,
-  Scene, StandardMaterial, TransformNode,
-  Vector3
+  Scene
 } from "@babylonjs/core";
 
 import {CameraManager, VIEWSTATUS} from "../babylon/CameraManager.ts";
@@ -22,11 +17,8 @@ import {BattleManager} from "../babylon/BattleManager.ts";
 import {TableManager} from "../babylon/TableManager.ts";
 import MessageQueue, {parchment} from "../babylon/GUIMessageSystem.ts";
 import {AdvancedDynamicTexture} from "@babylonjs/gui";
-import {ability_flying, CARD_NAMES, loadImage} from "../babylon/Card-database.ts";
 import {LightManager} from "../babylon/LightManager.ts";
-import {EventSystem} from "../babylon/EventSystem.ts";
 import Chat from "./Chat.vue";
-import {staticUrl} from "../api";
 // import {disposeMessageSystem, initGUIMessageSystem, showGUIText} from "../babylon/GUIMessageSystem.ts";
 const bjsCanvas = ref<HTMLCanvasElement | null>(null);
 onBeforeMount(() => {
